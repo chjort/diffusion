@@ -51,7 +51,7 @@ def cache(filename):
 class Diffusion(object):
     """Diffusion class
     """
-    def __init__(self, features, cache_dir):
+    def __init__(self, features, cache_dir=None):
         self.features = features
         self.N = len(self.features)
         self.cache_dir = cache_dir
@@ -59,9 +59,11 @@ class Diffusion(object):
         self.use_ann = self.N >= 100000
         if self.use_ann:
             self.ann = ANN(self.features, method='cosine')
+            # self.ann = ANN(self.features, method='euclidean')
         self.knn = KNN(self.features, method='cosine')
+        # self.knn = KNN(self.features, method='euclidean')
 
-    @cache('offline.jbl')
+    # @cache('offline.jbl')
     def get_offline_results(self, n_trunc, kd=50):
         """Get offline diffusion results for each gallery feature
         """
@@ -125,8 +127,10 @@ class Diffusion(object):
         # mut_sims: similarites between feature vectors and their mutual nearest neighbors
         vec_ids, mut_ids, mut_sims = [], [], []
         for i in range(num):
+            i_nn = ids[i]
+            j_nn = ids[i_nn]
             # check reciprocity: i is in j's kNN and j is in i's kNN when i != j
-            ismutual = np.isin(ids[ids[i]], i).any(axis=1)
+            ismutual = np.isin(j_nn, i).any(axis=1)
             ismutual[0] = False
             if ismutual.any():
                 vec_ids.append(i * np.ones(ismutual.sum(), dtype=int))
