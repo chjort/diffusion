@@ -1,16 +1,11 @@
-import os
-import pickle
-
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as linalg
-from joblib import Parallel, delayed
 from sklearn import preprocessing
 from tqdm import tqdm
 
-from dataset import Dataset
 from diffusion import Diffusion
-from diffusion_ch.utils import load_moons, plot_scatter_2d, load_circles
+from diffusion_ch.utils import load_moons, visualize_ranking
 from rank import compute_map_and_print
 
 np.random.seed(42)
@@ -23,6 +18,11 @@ np.random.seed(42)
 #
 # X = np.vstack([queries, gallery])
 # n_query = len(queries)
+####
+# gnd_path = "data/gnd_oxford5k.pkl"
+# gnd_name = os.path.splitext(os.path.basename(gnd_path))[0]
+# with open(gnd_path, "rb") as f:
+#     gnd = pickle.load(f)["gnd"]
 
 #%%
 X, y = load_moons()
@@ -51,7 +51,7 @@ k = 15
 
 #%% Construct graph (A)
 sims, ids = diffusion.knn.search(diffusion.features, truncation_size)
-# sims = 1 - (sims / sims.max(axis=1)[:, None])
+sims = 1 - (sims / sims.max(axis=1)[:, None])
 trunc_ids = ids
 
 #%% Affinity matrix (A)
@@ -110,36 +110,26 @@ c = np.array(L_inv[c_mask].todense())
 
 f_opt = np.matmul(q, np.transpose(c))
 ranks = np.fliplr(np.argsort(f_opt))
+scores = np.fliplr(np.sort(f_opt))
 
 #%%
-# gnd_path = "data/gnd_oxford5k.pkl"
-# gnd_name = os.path.splitext(os.path.basename(gnd_path))[0]
-# with open(gnd_path, "rb") as f:
-#     gnd = pickle.load(f)["gnd"]
-
-
 yq = y[q_idx]
 yc = y[c_mask]
 gnd = [{"ok": np.argwhere(yc == yq[i])[:, 0]} for i in range(len(yq))]
 
 ## KNN scores
 ranks_a = ids[q_idx]
-scores_a = sims[q_idx] #1 - (sims[q_idx] / sims.max(axis=1))
+scores_a = sims[q_idx]  # 1 - (sims[q_idx] / sims.max(axis=1))
 
 compute_map_and_print("oxford5k", ranks.T, gnd)
 compute_map_and_print("oxford5k", ranks_a.T, gnd)
 
 #%%
-plot_k = 80
+plot_k = 750
 k_idx = ranks_a[:, 1 : plot_k + 1]
-k_scores = scores_a[:, 1: plot_k + 1]
-# k_scores = None
-plot_scatter_2d(X, y, class_color=False, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores)
+k_scores = scores_a[:, 1 : plot_k + 1]
+visualize_ranking(Xn, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=True)
 
 k_idx = ranks[:, :plot_k]
-scores = np.fliplr(np.sort(f_opt))
 k_scores = scores[:, :plot_k]
-# k_scores = None
-plot_scatter_2d(X, y, class_color=False, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores)
-k_scores.min()
-k_scores.max()
+visualize_ranking(Xn, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=True)
