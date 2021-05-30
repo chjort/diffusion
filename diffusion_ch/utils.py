@@ -5,9 +5,18 @@ from sklearn import datasets
 np.random.seed(42)
 
 
+def load_circles():
+    n = 500
+    X, y = datasets.make_circles(
+        n_samples=n, noise=0.05, random_state=42, factor=0.6, shuffle=False
+    )
+
+    return X, y
+
+
 def load_moons():
     n = 500
-    X, y = datasets.make_moons(n_samples=n, noise=0.07, random_state=42)
+    X, y = datasets.make_moons(n_samples=n, noise=0.07, random_state=42, shuffle=False)
 
     x0 = X[y == 0]
     X[:, 0][y == 0] -= 0.25

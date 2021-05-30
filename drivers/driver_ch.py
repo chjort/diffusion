@@ -10,42 +10,43 @@ from tqdm import tqdm
 
 from dataset import Dataset
 from diffusion import Diffusion
-from diffusion_ch.utils import load_moons, plot_scatter_2d
+from diffusion_ch.utils import load_moons, plot_scatter_2d, load_circles
 from rank import compute_map_and_print
 
 np.random.seed(42)
 
 #%%
-query_path = "data/query/oxford5k_resnet_glob.npy"
-gallery_path = "data/gallery/oxford5k_resnet_glob.npy"
-dataset = Dataset(query_path, gallery_path)
-queries, gallery = dataset.queries, dataset.gallery
-
-X = np.vstack([queries, gallery])
-n_query = len(queries)
+# query_path = "data/query/oxford5k_resnet_glob.npy"
+# gallery_path = "data/gallery/oxford5k_resnet_glob.npy"
+# dataset = Dataset(query_path, gallery_path)
+# queries, gallery = dataset.queries, dataset.gallery
+#
+# X = np.vstack([queries, gallery])
+# n_query = len(queries)
 
 #%%
 X, y = load_moons()
+# X, y = load_circles()
 n = X.shape[0]
 
-Xn = preprocessing.normalize(X, norm="l2", axis=1)
-# Xn = X
+# Xn = preprocessing.normalize(X, norm="l2", axis=1)
+# diffusion = Diffusion(Xn, method="cosine")
 
-# 8, 10, 17
-# q_idx = [730, 17]
-# q_idx = [730, 44]
-# q_idx = [730, 324]
-q_idx = [730, 14]
+Xn = X
+diffusion = Diffusion(Xn, method="euclidean")
+
+# q_idx = [200, 600]
 # q_idx = np.arange(n_query)
 k_idx = None
+
+q_idx = [333, 14]  # circles
 
 # %%
 truncation_size = n
 # truncation_size = 1000
-# k = 15
-k = 50
-
-diffusion = Diffusion(Xn)
+# k = 5
+k = 15
+# k = 50
 
 #%% Construct graph (A)
 sims, ids = diffusion.knn.search(diffusion.features, truncation_size)
@@ -106,7 +107,7 @@ q = np.array(L_inv[q_idx].todense())
 c = np.array(L_inv[c_mask].todense())
 
 f_opt = np.matmul(q, np.transpose(c))
-ranks = np.array(np.argsort(-f_opt))
+ranks = np.fliplr(np.argsort(f_opt))
 
 #%%
 # gnd_path = "data/gnd_oxford5k.pkl"
@@ -128,10 +129,18 @@ compute_map_and_print("oxford5k", ranks.T, gnd)
 compute_map_and_print("oxford5k", ranks_a.T, gnd)
 
 #%%
-k_idx = ranks_a[:, 1 : k + 1].flatten()
+plot_k = 80
+k_idx = ranks_a[:, 1 : plot_k + 1].flatten()
 plot_scatter_2d(X, y, class_color=False, q_idx=q_idx, k_idx=k_idx, alpha=1.0)
-plot_scatter_2d(Xn, y, class_color=False, q_idx=q_idx, k_idx=k_idx, alpha=1.0)
+# plot_scatter_2d(Xn, y, class_color=False, q_idx=q_idx, k_idx=k_idx, alpha=1.0)
 
-k_idx = ranks[:, :k].flatten()
+k_idx = ranks[:, :plot_k].flatten()
 plot_scatter_2d(X, y, class_color=False, q_idx=q_idx, k_idx=k_idx, alpha=1.0)
-plot_scatter_2d(Xn, y, class_color=False, q_idx=q_idx, k_idx=k_idx, alpha=1.0)
+# plot_scatter_2d(Xn, y, class_color=False, q_idx=q_idx, k_idx=k_idx, alpha=1.0)
+
+
+#%%
+scores = np.fliplr(np.sort(f_opt))
+
+ranks
+scores

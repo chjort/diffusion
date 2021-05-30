@@ -51,17 +51,16 @@ def cache(filename):
 class Diffusion(object):
     """Diffusion class
     """
-    def __init__(self, features, cache_dir=None):
+    def __init__(self, features, method="cosine", cache_dir=None):
         self.features = features
         self.N = len(self.features)
+        self.method = method
         self.cache_dir = cache_dir
         # use ANN for large datasets
         self.use_ann = self.N >= 100000
         if self.use_ann:
-            self.ann = ANN(self.features, method='cosine')
-            # self.ann = ANN(self.features, method='euclidean')
-        self.knn = KNN(self.features, method='cosine')
-        # self.knn = KNN(self.features, method='euclidean')
+            self.ann = ANN(self.features, method=method)
+        self.knn = KNN(self.features, method=method)
 
     # @cache('offline.jbl')
     def get_offline_results(self, n_trunc, kd=50):
