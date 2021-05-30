@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn import datasets
@@ -40,7 +39,7 @@ def scatter2d(x, return_axes=False, **kwargs):
 def visualize_ranking(X, q_idx, k_idx, k_scores, contour=False):
     scatter2d(X, c="#028ae6")
 
-    for k_idx_i, k_scores_i in zip(k_idx, k_scores):
+    for i, (k_idx_i, k_scores_i) in enumerate(zip(k_idx, k_scores)):
         Xk = X[k_idx_i]
         xax, yax = scatter2d(
             Xk,
@@ -50,9 +49,11 @@ def visualize_ranking(X, q_idx, k_idx, k_scores, contour=False):
             linewidths=0.5,
             return_axes=True,
         )
+        if i == 0:
+            plt.colorbar()
         if contour:
             plt.tricontour(xax, yax, k_scores_i)
-    plt.colorbar()
+            # plt.tricontourf(xax, yax, k_scores_i)
 
     Xq = X[q_idx]
     scatter2d(Xq, c="C3")

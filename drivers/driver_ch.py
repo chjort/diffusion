@@ -5,10 +5,22 @@ from sklearn import preprocessing
 from tqdm import tqdm
 
 from diffusion import Diffusion
-from diffusion_ch.utils import load_moons, visualize_ranking
+from diffusion_ch.utils import load_moons, visualize_ranking, load_circles
 from rank import compute_map_and_print
 
 np.random.seed(42)
+
+
+def sort2d(m, reverse=False):
+    ids = np.argsort(m)
+    scores = np.sort(m)
+
+    if not reverse:
+        ids = np.fliplr(ids)
+        scores = np.fliplr(scores)
+
+    return np.array(scores), np.array(ids)
+
 
 #%%
 # query_path = "data/query/oxford5k_resnet_glob.npy"
@@ -35,19 +47,15 @@ n = X.shape[0]
 Xn = X
 diffusion = Diffusion(Xn, method="euclidean")
 
-# q_idx = [200, 600]
-q_idx = [333]
-# q_idx = np.arange(n_query)
+# q_idx = [333, 600]
+q_idx = [13, 686]
+# q_idx = [333, 14]  # circles
 k_idx = None
 
-# q_idx = [333, 14]  # circles
 
 # %%
 truncation_size = n
-# truncation_size = 1000
-# k = 5
 k = 15
-# k = 50
 
 #%% Construct graph (A)
 sims, ids = diffusion.knn.search(diffusion.features, truncation_size)
@@ -105,31 +113,39 @@ L_inv = preprocessing.normalize(L_inv, norm="l2", axis=1)
 c_mask = np.ones(n, dtype=bool)
 c_mask[q_idx] = False
 
-q = np.array(L_inv[q_idx].todense())
+q = np.array(L_inv[q_idx].todense())#.sum(axis=0, keepdims=True)
 c = np.array(L_inv[c_mask].todense())
 
 f_opt = np.matmul(q, np.transpose(c))
-ranks = np.fliplr(np.argsort(f_opt))
-scores = np.fliplr(np.sort(f_opt))
+scores, ranks = sort2d(f_opt)
 
 #%%
 yq = y[q_idx]
 yc = y[c_mask]
+
+#%% Multi-query
+q = q.sum(axis=0, keepdims=True)
+f_opt = np.matmul(q, np.transpose(c))
+scores, ranks = sort2d(f_opt)
+yq = yq[:1]
+
+#%%
 gnd = [{"ok": np.argwhere(yc == yq[i])[:, 0]} for i in range(len(yq))]
 
 ## KNN scores
 ranks_a = ids[q_idx]
-scores_a = sims[q_idx]  # 1 - (sims[q_idx] / sims.max(axis=1))
+scores_a = sims[q_idx]
 
 compute_map_and_print("oxford5k", ranks.T, gnd)
 compute_map_and_print("oxford5k", ranks_a.T, gnd)
 
 #%%
-plot_k = 750
-k_idx = ranks_a[:, 1 : plot_k + 1]
-k_scores = scores_a[:, 1 : plot_k + 1]
-visualize_ranking(Xn, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=True)
+# plot_k = 50
+# k_idx = ranks_a[:, :plot_k]
+# k_scores = scores_a[:, :plot_k]
+# visualize_ranking(X, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=False)
 
+plot_k = 750
 k_idx = ranks[:, :plot_k]
 k_scores = scores[:, :plot_k]
-visualize_ranking(Xn, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=True)
+visualize_ranking(X, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=True)
