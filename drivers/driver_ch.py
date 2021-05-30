@@ -36,10 +36,11 @@ Xn = X
 diffusion = Diffusion(Xn, method="euclidean")
 
 # q_idx = [200, 600]
+q_idx = [333]
 # q_idx = np.arange(n_query)
 k_idx = None
 
-q_idx = [333, 14]  # circles
+# q_idx = [333, 14]  # circles
 
 # %%
 truncation_size = n
@@ -50,6 +51,7 @@ k = 15
 
 #%% Construct graph (A)
 sims, ids = diffusion.knn.search(diffusion.features, truncation_size)
+# sims = 1 - (sims / sims.max(axis=1)[:, None])
 trunc_ids = ids
 
 #%% Affinity matrix (A)
@@ -118,29 +120,26 @@ ranks = np.fliplr(np.argsort(f_opt))
 
 yq = y[q_idx]
 yc = y[c_mask]
-gnd = [{"ok": np.argwhere(yc == yq[0])[:, 0]}, {"ok": np.argwhere(yc == yq[1])[:, 0]}]
+gnd = [{"ok": np.argwhere(yc == yq[i])[:, 0]} for i in range(len(yq))]
 
-# ybin = np.equal(yq[:, None], yc[None, :]).astype(int)
-# indices = np.unravel_index(ranks, ybin.shape)
-# ybin[indices]
-
+## KNN scores
 ranks_a = ids[q_idx]
+scores_a = sims[q_idx] #1 - (sims[q_idx] / sims.max(axis=1))
+
 compute_map_and_print("oxford5k", ranks.T, gnd)
 compute_map_and_print("oxford5k", ranks_a.T, gnd)
 
 #%%
 plot_k = 80
-k_idx = ranks_a[:, 1 : plot_k + 1].flatten()
-plot_scatter_2d(X, y, class_color=False, q_idx=q_idx, k_idx=k_idx, alpha=1.0)
-# plot_scatter_2d(Xn, y, class_color=False, q_idx=q_idx, k_idx=k_idx, alpha=1.0)
+k_idx = ranks_a[:, 1 : plot_k + 1]
+k_scores = scores_a[:, 1: plot_k + 1]
+# k_scores = None
+plot_scatter_2d(X, y, class_color=False, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores)
 
-k_idx = ranks[:, :plot_k].flatten()
-plot_scatter_2d(X, y, class_color=False, q_idx=q_idx, k_idx=k_idx, alpha=1.0)
-# plot_scatter_2d(Xn, y, class_color=False, q_idx=q_idx, k_idx=k_idx, alpha=1.0)
-
-
-#%%
+k_idx = ranks[:, :plot_k]
 scores = np.fliplr(np.sort(f_opt))
-
-ranks
-scores
+k_scores = scores[:, :plot_k]
+# k_scores = None
+plot_scatter_2d(X, y, class_color=False, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores)
+k_scores.min()
+k_scores.max()
