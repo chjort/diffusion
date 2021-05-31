@@ -36,8 +36,8 @@ n = X.shape[0]
 Xn = X
 
 # q_idx = [333, 600]
-# q_idx = [600, 686]
-q_idx = [13 + 3, 686 + 3]
+q_idx = [600, 686+3]
+# q_idx = [13 + 3, 686 + 3]
 # q_idx = [333, 14]  # circles
 k_idx = None
 
@@ -45,30 +45,16 @@ k_idx = None
 diffusion = Diffusion(k=15, truncation_size=500, affinity="euclidean")
 diffusion.fit(Xn)
 
+#%%
+# q_idx = [[13 + 3, 686 + 3], [600, 686, 606]]
+# q_idx = [[600, 686]]
+
 # %% Diffusion
-L_inv = diffusion.l_inv_
-# c_mask[q_idx] = False
-
-# q = np.array(L_inv[q_idx].todense())  # .sum(axis=0, keepdims=True)
-# c = np.array(L_inv.todense())
-
-# f_opt = np.matmul(q, np.transpose(c))
-# scores, ranks = sort2d(f_opt)
-scores, ranks = diffusion.offline_search(q_idx)
-ranks.shape
-
-scores
-q_idx
-ranks
-
-
+scores, ranks = diffusion.offline_search(q_idx, agg=True)
 
 # %%
-# c_mask = np.ones(n, dtype=bool)
-# c_mask[q_idx] = False
-
-yq = y[q_idx]
-yc = y#[c_mask]
+# yq = y[q_idx]
+# yc = y
 
 # %% Multi-query
 # q = q.sum(axis=0, keepdims=True)
@@ -80,11 +66,11 @@ yc = y#[c_mask]
 # ranks = ranks_m
 
 # %%
-gnd = [{"ok": np.argwhere(yc == yq[i])[:, 0]} for i in range(len(yq))]
-compute_map_and_print("oxford5k", ranks.T, gnd)
+# gnd = [{"ok": np.argwhere(yc == yq[i])[:, 0]} for i in range(len(yq))]
+# compute_map_and_print("oxford5k", ranks.T, gnd)
 
 # %%
-plot_k = 150
+plot_k = 750
 k_idx = ranks[:, :plot_k]
 k_scores = scores[:, :plot_k]
 
@@ -110,6 +96,8 @@ k_scores_post = np.array([[idx_score_agg[idx] for idx in k_idx[0]]])
 # f_opt, ranks = diffusion.offline_search(q_idx)
 
 #%%
+# visualize_ranking(X, q_idx=q_idx, k_idx=[], k_scores=[], contour=False)
+# visualize_ranking(X, q_idx=None, k_idx=k_idx, k_scores=k_scores, contour=False)
 visualize_ranking(X, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=False)
 # visualize_ranking(X, q_idx=q_idx, k_idx=k_idx_m, k_scores=k_scores_m, contour=False)
 # visualize_ranking(X, q_idx=q_idx, k_idx=k_idx_post, k_scores=k_scores_post, contour=False)

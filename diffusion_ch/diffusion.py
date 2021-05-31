@@ -206,23 +206,26 @@ class Diffusion:
 
         return self
 
-    def offline_search(self, ids):
-        try:
-            ids = _conform_indices(ids, ndim=1)
-        except ValueError:
-            ids = _conform_indices(ids, ndim=2)
+    def offline_search(self, ids, agg=False):
+        ids = _conform_indices(ids, ndim=1)
 
-        f_opt_q = self.l_inv_[ids].toarray()
-        f_opt_c = f_opt_q.dot(self.l_inv_.toarray().T)
+        c_q = self.l_inv_[ids].toarray()
+        if agg:
+            # agg method 1
+            c_q = c_q.sum(axis=0, keepdims=True)
 
-        # f_opt_c, ranks = sort2d_trunc(f_opt_c, self.truncation_size)
+        f_opt_c = c_q.dot(self.l_inv_.toarray().T)
         f_opt_c, ranks = sort2d(f_opt_c)
 
-        if ids.ndim == 1:
-            # remove the queries themselves from the ranking
-            f_opt_c = f_opt_c[:, 1:]
-            ranks = ranks[:, 1:]
+        # remove the queries themselves from the search neighbors
+        not_query = np.isin(ranks, ids, invert=True)
+        without_queries_shape = [ranks.shape[0], ranks.shape[1] - ids.shape[0]]
+        ranks = np.reshape(ranks[not_query], without_queries_shape)
+        f_opt_c = np.reshape(f_opt_c[not_query], without_queries_shape)
 
+        # if agg:
+            # agg method 2
+            # pass
 
         return f_opt_c, ranks
 
