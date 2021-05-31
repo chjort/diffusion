@@ -60,10 +60,19 @@ def _laplace_inv_col(node_ids, laplacian, f0):
     return c_i
 
 
-def _check_arr(X):
+def _conform_x(X):
     X = np.array(X, dtype=np.float32)
     if X.ndim != 2:
         raise ValueError("`features` must have rank 2. Found rank {}.".format(X.ndim))
+    return X
+
+
+def _conform_indices(X, ndim=2):
+    X = np.array(X, dtype=int)
+    if X.ndim != ndim:
+        raise ValueError(
+            "`features` must have rank {}. Found rank {}.".format(ndim, X.ndim)
+        )
     return X
 
 
@@ -182,7 +191,7 @@ class Diffusion:
         return L_inv
 
     def fit(self, X, y=None):
-        X = _check_arr(X)
+        X = _conform_x(X)
 
         self._build_index(X)
         aff, ids = self._compute_neighborhood_graph(X)
@@ -197,25 +206,46 @@ class Diffusion:
 
         return self
 
-    def fit_transform(self, X, y=None):
-        self.fit(X)
-        return self.l_inv_
+    def offline_search(self, ids):
+        try:
+            ids = _conform_indices(ids, ndim=1)
+        except ValueError:
+            ids = _conform_indices(ids, ndim=2)
 
-    def transform(self, X, y=None):
-        X = _check_arr(X)
-        weights, nn_ids = self._knn_search(X, k=self.k)
-        weights = weights ** self.gamma
+        f_opt_q = self.l_inv_[ids].toarray()
+        f_opt_c = f_opt_q.dot(self.l_inv_.toarray())
 
-        n = X.shape[0]
-        x_scores = []
+        f_opt_c, ranks = sort2d_trunc(f_opt_c, self.truncation_size)
+        return f_opt_c, ranks
+
+    def initialize(self, X):
+        X = _conform_x(X)
+        y, nn_ids = self._knn_search(X, k=self.k)
+        y = y ** self.gamma
+
+        return y, nn_ids
+
+    def _online_search(self, y, ids):
+        n = y.shape[0]
+
+        f_opt = []
         for i in range(n):
-            neighbors_i = nn_ids[i]
+            neighbors_i = ids[i]
             L_inv_neighbors = self.l_inv_[neighbors_i].toarray()
-            scores = weights[i].dot(L_inv_neighbors)
-            x_scores.append(scores)
-        x_scores = np.stack(x_scores, axis=0)
+            f_opt_i = y[i].dot(L_inv_neighbors)
+            f_opt.append(f_opt_i)
+        f_opt = np.stack(f_opt, axis=0)
+        return f_opt
 
-        # x_scores, x_ranks = sort2d_trunc(x_scores, self.truncation_size)
-        # return x_scores, x_ranks
-        return x_scores
+    def online_search(self, X):
+        y, ids = self.initialize(X)
+        f_opt = self._online_search(y, ids)
+        f_opt, ranks = sort2d_trunc(f_opt, self.truncation_size)
+        return f_opt, ranks
 
+    def online_search_d(self, X):
+        y, ids = self.initialize(X)
+        f_opt = self._online_search(y, ids)
+        f_opt = f_opt @ self.l_inv_.toarray()
+        f_opt, ranks = sort2d_trunc(f_opt, self.truncation_size)
+        return f_opt, ranks

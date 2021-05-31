@@ -33,11 +33,6 @@ y = y[3:]
 # X, y = load_circles()
 n = X.shape[0]
 
-# rand_idx = np.arange(X.shape[0])
-# np.random.shuffle(rand_idx)
-# X = X[rand_idx]
-# y = y[rand_idx]
-
 Xn = X
 
 # q_idx = [333, 600]
@@ -48,27 +43,31 @@ k_idx = None
 
 # %%
 diffusion = Diffusion(k=15, truncation_size=500, affinity="euclidean")
-# diffusion.fit(Xn)
-L_inv = diffusion.fit_transform(Xn)
+diffusion.fit(Xn)
+L_inv = diffusion.l_inv_
 
 # %% Diffusion
-c_mask = np.ones(n, dtype=bool)
-c_mask[q_idx] = False
+# c_mask = np.ones(n, dtype=bool)
+# c_mask[q_idx] = False
 
-q = np.array(L_inv[q_idx].todense())  # .sum(axis=0, keepdims=True)
-c = np.array(L_inv[c_mask].todense())
+# q = np.array(L_inv[q_idx].todense())  # .sum(axis=0, keepdims=True)
+# c = np.array(L_inv.todense())
 
-f_opt = np.matmul(q, np.transpose(c))
-scores, ranks = sort2d(f_opt)
+# f_opt = np.matmul(q, np.transpose(c))
+# scores, ranks = sort2d(f_opt)
+scores, ranks = diffusion.offline_search(q_idx)
 
 # %%
+# c_mask = np.ones(n, dtype=bool)
+# c_mask[q_idx] = False
+
 yq = y[q_idx]
-yc = y[c_mask]
+yc = y#[c_mask]
 
 # %% Multi-query
-q = q.sum(axis=0, keepdims=True)
-f_opt = np.matmul(q, np.transpose(c))
-scores_m, ranks_m = sort2d(f_opt)
+# q = q.sum(axis=0, keepdims=True)
+# f_opt = np.matmul(q, np.transpose(c))
+# scores_m, ranks_m = sort2d(f_opt)
 
 # yq = yq[:1]
 # scores = scores_m
@@ -84,8 +83,8 @@ k_idx = ranks[:, :plot_k]
 k_scores = scores[:, :plot_k]
 
 # %%
-k_idx_m = ranks_m[:, :plot_k]
-k_scores_m = scores_m[:, :plot_k]
+# k_idx_m = ranks_m[:, :plot_k]
+# k_scores_m = scores_m[:, :plot_k]
 
 #%%
 idx_score_agg = {}
@@ -101,23 +100,17 @@ k_scores_post = np.array([[idx_score_agg[idx] for idx in k_idx[0]]])
 # k_idx = k_idx_post
 # k_scores = k_scores_post
 
+#%% Offline search
+# f_opt, ranks = diffusion.offline_search(q_idx)
+
 #%%
-# visualize_ranking(X, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=False)
+visualize_ranking(X, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=False)
 # visualize_ranking(X, q_idx=q_idx, k_idx=k_idx_m, k_scores=k_scores_m, contour=False)
 # visualize_ranking(X, q_idx=q_idx, k_idx=k_idx_post, k_scores=k_scores_post, contour=False)
 
-#%%
-# k_scores, k_idx = diffusion.transform(Xt)
-# print(k_idx.shape)
-# k_scores = k_scores[-1:, :plot_k]  # NOTE: Last row
-# k_idx = k_idx[-1:, :plot_k]  # NOTE: Last row
-# visualize_ranking(X, q_idx=None, k_idx=k_idx, k_scores=k_scores, contour=False)
-
-k_scores = diffusion.transform(Xt)
-k_scores = k_scores[-1:]
-k_scores = k_scores @ diffusion.l_inv_.todense()
-k_scores, k_idx = sort2d(k_scores)
-
-k_idx = k_idx[:, :plot_k]
-k_scores = k_scores[:, :plot_k]
+#%% Online search
+k_scores, k_idx = diffusion.online_search(Xt)
+# k_scores, k_idx = diffusion.online_search_d(Xt)
+k_scores = k_scores[-1:, :plot_k]  # NOTE: Last row
+k_idx = k_idx[-1:, :plot_k]  # NOTE: Last row
 visualize_ranking(X, q_idx=None, k_idx=k_idx, k_scores=k_scores, contour=False)
