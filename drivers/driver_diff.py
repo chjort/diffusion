@@ -44,10 +44,9 @@ k_idx = None
 # %%
 diffusion = Diffusion(k=15, truncation_size=500, affinity="euclidean")
 diffusion.fit(Xn)
-L_inv = diffusion.l_inv_
 
 # %% Diffusion
-# c_mask = np.ones(n, dtype=bool)
+L_inv = diffusion.l_inv_
 # c_mask[q_idx] = False
 
 # q = np.array(L_inv[q_idx].todense())  # .sum(axis=0, keepdims=True)
@@ -56,6 +55,13 @@ L_inv = diffusion.l_inv_
 # f_opt = np.matmul(q, np.transpose(c))
 # scores, ranks = sort2d(f_opt)
 scores, ranks = diffusion.offline_search(q_idx)
+ranks.shape
+
+scores
+q_idx
+ranks
+
+
 
 # %%
 # c_mask = np.ones(n, dtype=bool)

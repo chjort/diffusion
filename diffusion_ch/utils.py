@@ -16,7 +16,7 @@ def load_circles():
 
 def load_moons():
     n = 500
-    X, y = datasets.make_moons(n_samples=n, noise=0.07, random_state=42, shuffle=True)
+    X, y = datasets.make_moons(n_samples=n, noise=0.07, random_state=42, shuffle=False)
 
     x0 = X[y == 0]
     X[:, 0][y == 0] -= 0.25

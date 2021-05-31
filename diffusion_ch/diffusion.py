@@ -213,9 +213,10 @@ class Diffusion:
             ids = _conform_indices(ids, ndim=2)
 
         f_opt_q = self.l_inv_[ids].toarray()
-        f_opt_c = f_opt_q.dot(self.l_inv_.toarray())
+        f_opt_c = f_opt_q.dot(self.l_inv_.toarray().T)
 
-        f_opt_c, ranks = sort2d_trunc(f_opt_c, self.truncation_size)
+        # f_opt_c, ranks = sort2d_trunc(f_opt_c, self.truncation_size)
+        f_opt_c, ranks = sort2d(f_opt_c)
         return f_opt_c, ranks
 
     def initialize(self, X):
