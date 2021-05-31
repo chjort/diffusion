@@ -45,12 +45,11 @@ k_idx = None
 diffusion = Diffusion(k=15, truncation_size=500, affinity="euclidean")
 diffusion.fit(Xn)
 
-#%%
-# q_idx = [[13 + 3, 686 + 3], [600, 686, 606]]
-# q_idx = [[600, 686]]
-
 # %% Diffusion
 scores, ranks = diffusion.offline_search(q_idx, agg=True)
+
+# q_idx = [[13 + 3, 686 + 3], [600, 686, 606]]
+# scores, ranks = diffusion.offline_search_m(q_idx)
 
 # %%
 # yq = y[q_idx]

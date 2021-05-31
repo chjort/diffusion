@@ -190,7 +190,7 @@ class Diffusion:
 
         return L_inv
 
-    def fit(self, X, y=None):
+    def fit(self, X):
         X = _conform_x(X)
 
         self._build_index(X)
@@ -205,6 +205,12 @@ class Diffusion:
         self.l_inv_ = L_inv
 
         return self
+
+    def offline_search_m(self, ids):
+        ids = [_conform_indices(ids_i, ndim=1) for ids_i in ids]
+        fopts_ranks = [self.offline_search(ids_i, agg=True) for ids_i in ids]
+        f_opts, ranks = list(zip(*fopts_ranks))
+        return f_opts, ranks
 
     def offline_search(self, ids, agg=False):
         ids = _conform_indices(ids, ndim=1)
@@ -224,8 +230,8 @@ class Diffusion:
         f_opt_c = np.reshape(f_opt_c[not_query], without_queries_shape)
 
         # if agg:
-            # agg method 2
-            # pass
+        # agg method 2
+        # pass
 
         return f_opt_c, ranks
 
