@@ -44,7 +44,7 @@ def visualize_ranking(X, q_idx, k_idx, k_scores, contour=False):
         xax, yax = scatter2d(
             Xk,
             c=k_scores_i,
-            edgecolors="b",
+            edgecolors="k",
             s=50,
             linewidths=0.5,
             return_axes=True,

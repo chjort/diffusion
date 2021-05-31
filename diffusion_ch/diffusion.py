@@ -6,6 +6,22 @@ from sklearn import preprocessing
 from tqdm import tqdm
 
 
+# @delayed
+def _laplace_inv_col(node_ids, laplacian, f0):
+    L_trunc = laplacian[node_ids][:, node_ids]
+    c_i, _ = linalg.cg(L_trunc, f0, tol=1e-6, maxiter=20)
+    return c_i
+
+
+def _check_arr(X):
+    X = np.array(X, dtype=np.float32)
+    if X.ndim != 2:
+        raise ValueError(
+            "`features` must have rank 2. Found rank {}.".format(X.ndim)
+        )
+    return X
+
+
 class Diffusion:
     def __init__(self, k=15, truncation_size=None, affinity="cosine"):
         super(Diffusion, self).__init__()
@@ -27,13 +43,18 @@ class Diffusion:
             )
         self.knn_.add(X)
 
+    def _knn_search(self, x, k):
+        scores, ids = self.knn_.search(x, k)
+        scores = 1 - (scores / scores.max(axis=1)[:, None])
+        return scores, ids
+
     def _compute_neighborhood_graph(self, X):
         if self.truncation_size is not None:
             k = self.truncation_size  # TODO: Test if truncation here is necessary
         else:
             k = X.shape[0]
 
-        aff, ids = self.knn_.search(X, k)
+        aff, ids = self._knn_search(X, k)
         return aff, ids
 
     def _compute_affinity_matrix(self, sims, ids, gamma=3):
@@ -93,17 +114,14 @@ class Diffusion:
         laplacian = sparse_eye - alpha * transition_matrix
         return laplacian
 
-    def _compute_inverse_laplacian(self, neighborhood_ids, laplacian, f0):
+    def _compute_inverse_laplacian(self, neighborhood_ids, laplacian):
         n = laplacian.shape[0]
 
-        # @delayed
-        def laplace_inv_col(node_ids, laplacian, f0):
-            L_trunc = laplacian[node_ids][:, node_ids]
-            c_i, _ = linalg.cg(L_trunc, f0, tol=1e-6, maxiter=20)
-            return c_i
+        f0 = np.zeros(self.truncation_size)
+        f0[0] = 1
 
         gen = (
-            laplace_inv_col(neighborhood_ids[i], laplacian, f0) for i in tqdm(range(n))
+            _laplace_inv_col(neighborhood_ids[i], laplacian, f0) for i in tqdm(range(n))
         )
         # L_inv_cols = Parallel(n_jobs=-1, prefer="threading")(gen)
         L_inv_cols = list(gen)
@@ -118,11 +136,7 @@ class Diffusion:
         return L_inv
 
     def fit(self, X, y=None):
-        X = np.array(X, dtype=np.float32)
-        if X.ndim != 2:
-            raise ValueError(
-                "`features` must have rank 2. Found rank {}.".format(X.ndim)
-            )
+        X = _check_arr(X)
 
         self._build_index(X)
         aff, ids = self._compute_neighborhood_graph(X)
@@ -131,10 +145,17 @@ class Diffusion:
         S = D.dot(A).dot(D)
         L = self._compute_laplacian_matrix(S)
 
-        f0 = np.zeros(self.truncation_size)
-        f0[0] = 1
-        L_inv = self._compute_inverse_laplacian(ids, L, f0)
+        L_inv = self._compute_inverse_laplacian(ids, L)
         L_inv = preprocessing.normalize(L_inv, norm="l2", axis=1)
         self.l_inv_ = L_inv
 
         return self
+
+    def fit_transform(self, X, y=None):
+        self.fit(X)
+        return self.l_inv_
+
+    def transform(self, X, y=None):
+        X = _check_arr(X)
+        nn_s, nn_id = self._knn_search(X, k=self.k)
+        return nn_s, nn_id
