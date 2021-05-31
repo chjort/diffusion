@@ -217,6 +217,13 @@ class Diffusion:
 
         # f_opt_c, ranks = sort2d_trunc(f_opt_c, self.truncation_size)
         f_opt_c, ranks = sort2d(f_opt_c)
+
+        if ids.ndim == 1:
+            # remove the queries themselves from the ranking
+            f_opt_c = f_opt_c[:, 1:]
+            ranks = ranks[:, 1:]
+
+
         return f_opt_c, ranks
 
     def initialize(self, X):
