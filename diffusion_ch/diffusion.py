@@ -220,6 +220,7 @@ class Diffusion:
             # agg method 1
             c_q = c_q.sum(axis=0, keepdims=True)
 
+        # TODO: Single dot product for all aggregates in `offline_search_m`
         f_opt_c = c_q.dot(self.l_inv_.toarray().T)
         f_opt_c, ranks = sort2d(f_opt_c)
 
@@ -229,6 +230,7 @@ class Diffusion:
         ranks = np.reshape(ranks[not_query], without_queries_shape)
         f_opt_c = np.reshape(f_opt_c[not_query], without_queries_shape)
 
+        # TODO
         # if agg:
         # agg method 2
         # pass
