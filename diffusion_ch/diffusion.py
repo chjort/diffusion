@@ -6,6 +6,53 @@ from sklearn import preprocessing
 from tqdm import tqdm
 
 
+def _args2d_to_indices(argsort_inds):
+    rows = np.expand_dims(np.arange(argsort_inds.shape[0]), 1)
+    return (rows, argsort_inds)
+
+
+def sort2d(m, reverse=False):
+    """
+    Sorts a 2D array along the column axis and returns sorted values
+    together with sorted indices.
+    """
+
+    ids = np.argsort(m)
+    ids_inds = _args2d_to_indices(ids)
+    scores = m[ids_inds]
+
+    if not reverse:
+        ids = np.fliplr(ids)
+        scores = np.fliplr(scores)
+
+    return np.array(scores), np.array(ids)
+
+
+def sort2d_trunc(m, trunc, reverse=False):
+    """
+    Sorts a 2D array along the column axis up until `trunc` columns.
+    Returns the truncated sorted values together with truncated sorted indices.
+
+    This function is faster than standard sorting followed by truncation.
+    """
+
+    parts = np.argpartition(-m, trunc, axis=1)
+    parts = parts[:, :trunc]
+    parts_inds = _args2d_to_indices(parts)
+
+    ids = np.argsort(-m[parts_inds], axis=1)
+    ids_inds = _args2d_to_indices(ids)
+
+    scores = m[parts_inds][ids_inds]
+    ids = parts[ids_inds]
+
+    if reverse:
+        ids = np.fliplr(ids)
+        scores = np.fliplr(scores)
+
+    return scores, ids
+
+
 # @delayed
 def _laplace_inv_col(node_ids, laplacian, f0):
     L_trunc = laplacian[node_ids][:, node_ids]
@@ -16,18 +63,17 @@ def _laplace_inv_col(node_ids, laplacian, f0):
 def _check_arr(X):
     X = np.array(X, dtype=np.float32)
     if X.ndim != 2:
-        raise ValueError(
-            "`features` must have rank 2. Found rank {}.".format(X.ndim)
-        )
+        raise ValueError("`features` must have rank 2. Found rank {}.".format(X.ndim))
     return X
 
 
 class Diffusion:
-    def __init__(self, k=15, truncation_size=None, affinity="cosine"):
+    def __init__(self, k=15, truncation_size=None, affinity="cosine", gamma=3):
         super(Diffusion, self).__init__()
         self.k = k
         self.truncation_size = truncation_size
         self.affinity = affinity
+        self.gamma = gamma
 
     def _build_index(self, X):
         d = X.shape[1]
@@ -57,7 +103,7 @@ class Diffusion:
         aff, ids = self._knn_search(X, k)
         return aff, ids
 
-    def _compute_affinity_matrix(self, sims, ids, gamma=3):
+    def _compute_affinity_matrix(self, sims, ids):
         # TODO: Refactor this method!!!
         """Create affinity matrix for the mutual kNN graph of the whole dataset
         Args:
@@ -71,7 +117,7 @@ class Diffusion:
 
         num = sims.shape[0]
         sims[sims < 0] = 0  # similarity should be non-negative
-        sims = sims ** gamma
+        sims = sims ** self.gamma
         # vec_ids: feature vectors' ids
         # mut_ids: mutual (reciprocal) nearest neighbors' ids
         # mut_sims: similarites between feature vectors and their mutual nearest neighbors
@@ -140,7 +186,7 @@ class Diffusion:
 
         self._build_index(X)
         aff, ids = self._compute_neighborhood_graph(X)
-        A = self._compute_affinity_matrix(aff, ids, gamma=3)
+        A = self._compute_affinity_matrix(aff, ids)
         D = self._compute_degree_matrix(A)
         S = D.dot(A).dot(D)
         L = self._compute_laplacian_matrix(S)
@@ -157,5 +203,19 @@ class Diffusion:
 
     def transform(self, X, y=None):
         X = _check_arr(X)
-        nn_s, nn_id = self._knn_search(X, k=self.k)
-        return nn_s, nn_id
+        weights, nn_ids = self._knn_search(X, k=self.k)
+        weights = weights ** self.gamma
+
+        n = X.shape[0]
+        x_scores = []
+        for i in range(n):
+            neighbors_i = nn_ids[i]
+            L_inv_neighbors = self.l_inv_[neighbors_i].toarray()
+            scores = weights[i].dot(L_inv_neighbors)
+            x_scores.append(scores)
+        x_scores = np.stack(x_scores, axis=0)
+
+        # x_scores, x_ranks = sort2d_trunc(x_scores, self.truncation_size)
+        # return x_scores, x_ranks
+        return x_scores
+
