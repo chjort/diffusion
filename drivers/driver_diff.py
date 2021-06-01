@@ -57,6 +57,15 @@ q_idx = [400, 689]
 off_scores, off_ranks = diffusion.offline_search(q_idx, agg=True)
 visualize_ranking(X, q_idx=q_idx, k_idx=off_ranks, k_scores=off_scores, contour=False)
 
+# offine multiple
+q_idx = [
+    [600, 689],
+    [400, 520]
+]
+offm_scores, offm_ranks = diffusion.offline_search_m(q_idx)
+visualize_ranking(X, q_idx=np.array(q_idx).flatten(), k_idx=offm_ranks[:1], k_scores=offm_scores[:1], contour=False)
+visualize_ranking(X, q_idx=np.array(q_idx).flatten(), k_idx=offm_ranks[1:2], k_scores=offm_scores[1:2], contour=False)
+
 # online
 on_scores, on_ranks = diffusion.online_search(Xt, agg=True)
 visualize_ranking(X, q=Xt, k_idx=on_ranks, k_scores=on_scores, contour=False)

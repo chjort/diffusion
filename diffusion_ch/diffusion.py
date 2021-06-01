@@ -86,6 +86,15 @@ def _conform_indices(X, ndim=2):
     return X
 
 
+def _remove_query_ids(f_opt, ranks, q_ids):
+    """ Remove the query ids from the search neighbors """
+    not_query = np.isin(ranks, q_ids, invert=True)
+    without_queries_shape = [ranks.shape[0], ranks.shape[1] - q_ids.shape[0]]
+    ranks = np.reshape(ranks[not_query], without_queries_shape)
+    f_opt = np.reshape(f_opt[not_query], without_queries_shape)
+    return f_opt, ranks
+
+
 class Diffusion:
     def __init__(self, k=15, truncation_size=None, affinity="cosine", gamma=3):
         super(Diffusion, self).__init__()
@@ -115,7 +124,7 @@ class Diffusion:
 
     def _compute_neighborhood_graph(self, X):
         if self.truncation_size is not None:
-            k = self.truncation_size  # TODO: Test if truncation here is necessary
+            k = self.truncation_size
         else:
             k = X.shape[0]
 
@@ -216,40 +225,54 @@ class Diffusion:
 
         return self
 
+    def _initialize_offline(self, ids, agg=False):
+        ids = _conform_indices(ids, ndim=1)
+        c_i = self.l_inv_[ids].toarray()
+        # c_i = np.eye(self.l_inv_.shape[0])[ids]
+
+        if agg:
+            c_i = c_i.sum(axis=0, keepdims=True)
+
+        return c_i
+
+    def _diffuse_offline(self, y):
+        l_inv = self.l_inv_.toarray().T
+        f_opt = y.dot(l_inv)
+        return f_opt
+
     def offline_search_m(self, ids):
         ids = [_conform_indices(ids_i, ndim=1) for ids_i in ids]
-        fopts_ranks = [self.offline_search(ids_i, agg=True) for ids_i in ids]
-        f_opts, ranks = list(zip(*fopts_ranks))
+        c_qs = np.concatenate([self._initialize_offline(id_, agg=True) for id_ in ids])
+        f_opts = self._diffuse_offline(c_qs)
+        f_opts, ranks = _sort2d(f_opts)
+
+        f_opts_ranks = [
+            _remove_query_ids(f_opt_i[None, :], ranks_i[None, :], id_)
+            for f_opt_i, ranks_i, id_ in zip(f_opts, ranks, ids)
+        ]
+
+        f_opts, ranks = zip(*f_opts_ranks)
+        f_opts, ranks = np.concatenate(f_opts), np.concatenate(ranks)
+
         return f_opts, ranks
 
     def offline_search(self, ids, agg=False):
         ids = _conform_indices(ids, ndim=1)
+        c_q = self._initialize_offline(ids, agg=agg)
+        f_opt = self._diffuse_offline(c_q)
 
-        c_q = self.l_inv_[ids].toarray()
-        # c_q = np.eye(self.l_inv_.shape[0])[ids]
-
-        if agg:
-            c_q = c_q.sum(axis=0, keepdims=True)
-
-        # TODO: Single dot product for all aggregates in `offline_search_m`
-        f_opt_c = c_q.dot(self.l_inv_.toarray().T)
-        # alternatively agg f_opt_c here
+        # TODO: Multiply truncation_size with number of aggregates and sort_trunc
         if agg:
             # when aggregating, the number of neighbors can be larger than truncation_size
-            f_opt_c, ranks = _sort2d(f_opt_c)
+            f_opt, ranks = _sort2d(f_opt)
         else:
-            f_opt_c, ranks = _sort2d_trunc(f_opt_c, self.truncation_size)
+            f_opt, ranks = _sort2d_trunc(f_opt, self.truncation_size)
 
+        f_opt, ranks = _remove_query_ids(f_opt, ranks, ids)
 
-        # remove the queries themselves from the search neighbors
-        not_query = np.isin(ranks, ids, invert=True)
-        without_queries_shape = [ranks.shape[0], ranks.shape[1] - ids.shape[0]]
-        ranks = np.reshape(ranks[not_query], without_queries_shape)
-        f_opt_c = np.reshape(f_opt_c[not_query], without_queries_shape)
+        return f_opt, ranks
 
-        return f_opt_c, ranks
-
-    def initialize(self, X, agg=False):
+    def _initialize_online(self, X, agg=False):
         X = _conform_x(X)
         y, nn_ids = self._knn_search(X, k=self.k)
         y = y ** self.gamma
@@ -260,7 +283,7 @@ class Diffusion:
 
         return y, nn_ids
 
-    def _online_search(self, y, ids):
+    def _diffuse_online(self, y, ids):
         n = y.shape[0]
 
         f_opt = []
@@ -274,15 +297,16 @@ class Diffusion:
 
     def online_search_m(self, X):
         X = [_conform_x(x_i) for x_i in X]
-        ys_ids = [self.initialize(x_i, agg=True) for x_i in X]
-        f_opts = np.concatenate([self._online_search(y, id_) for y, id_ in ys_ids])
+        ys_ids = [self._initialize_online(x_i, agg=True) for x_i in X]
+        f_opts = np.concatenate([self._diffuse_online(y, id_) for y, id_ in ys_ids])
         f_opt, ranks = _sort2d(f_opts)
         return f_opt, ranks
 
     def online_search(self, X, agg=False):
-        y, ids = self.initialize(X, agg=agg)
-        f_opt = self._online_search(y, ids)
+        y, ids = self._initialize_online(X, agg=agg)
+        f_opt = self._diffuse_online(y, ids)
 
+        # TODO: Multiply truncation_size with number of aggregates and sort_trunc
         if agg:
             # when aggregating, the number of neighbors can be larger than truncation_size
             f_opt, ranks = _sort2d(f_opt)
