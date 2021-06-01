@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 
 def _sum_groups(values, group_ids):
+    """Groups `values` by `group_ids` and sum values in each group"""
     group_sum = {}
     for gid, v in zip(group_ids, values):
         group_sum[gid] = group_sum.get(gid, 0) + v
@@ -37,7 +38,7 @@ def _sort2d(m, reverse=False):
     return np.array(scores), np.array(ids)
 
 
-def sort2d_trunc(m, trunc, reverse=False):
+def _sort2d_trunc(m, trunc, reverse=False):
     """
     Sorts a 2D array along the column axis up until `trunc` columns.
     Returns the truncated sorted values together with truncated sorted indices.
@@ -233,7 +234,12 @@ class Diffusion:
         # TODO: Single dot product for all aggregates in `offline_search_m`
         f_opt_c = c_q.dot(self.l_inv_.toarray().T)
         # alternatively agg f_opt_c here
-        f_opt_c, ranks = _sort2d(f_opt_c)
+        if agg:
+            # when aggregating, the number of neighbors can be larger than truncation_size
+            f_opt_c, ranks = _sort2d(f_opt_c)
+        else:
+            f_opt_c, ranks = _sort2d_trunc(f_opt_c, self.truncation_size)
+
 
         # remove the queries themselves from the search neighbors
         not_query = np.isin(ranks, ids, invert=True)
@@ -266,8 +272,21 @@ class Diffusion:
         f_opt = np.stack(f_opt, axis=0)
         return f_opt
 
+    def online_search_m(self, X):
+        X = [_conform_x(x_i) for x_i in X]
+        ys_ids = [self.initialize(x_i, agg=True) for x_i in X]
+        f_opts = np.concatenate([self._online_search(y, id_) for y, id_ in ys_ids])
+        f_opt, ranks = _sort2d(f_opts)
+        return f_opt, ranks
+
     def online_search(self, X, agg=False):
         y, ids = self.initialize(X, agg=agg)
         f_opt = self._online_search(y, ids)
-        f_opt, ranks = sort2d_trunc(f_opt, self.truncation_size)
+
+        if agg:
+            # when aggregating, the number of neighbors can be larger than truncation_size
+            f_opt, ranks = _sort2d(f_opt)
+        else:
+            f_opt, ranks = _sort2d_trunc(f_opt, self.truncation_size)
+
         return f_opt, ranks

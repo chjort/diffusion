@@ -6,6 +6,7 @@ from rank import compute_map_and_print
 
 np.random.seed(42)
 
+
 def sum_groups(values, group_ids):
     group_sum = {}
     for gid, v in zip(group_ids, values):
@@ -51,7 +52,8 @@ diffusion.fit(Xn)
 # %% Diffusion
 
 # offine
-q_idx = [600, 686+3]
+# q_idx = [600, 689]
+q_idx = [400, 689]
 off_scores, off_ranks = diffusion.offline_search(q_idx, agg=True)
 visualize_ranking(X, q_idx=q_idx, k_idx=off_ranks, k_scores=off_scores, contour=False)
 
@@ -60,11 +62,7 @@ on_scores, on_ranks = diffusion.online_search(Xt, agg=True)
 visualize_ranking(X, q=Xt, k_idx=on_ranks, k_scores=on_scores, contour=False)
 
 # online
-# Xt = np.array([[2., 1.]])
-# Xto = np.array([[-1.1, 1.2],
-#                [1, -0.25]])
-Xto = np.array([[0.4, 0.8],
-               [1, -0.50]])
+Xto = np.array([[0.4, 0.8], [1, -0.50]])
 on_scores, on_ranks = diffusion.online_search(Xto, agg=True)
 visualize_ranking(X, q=Xto, k_idx=on_ranks, k_scores=on_scores, contour=False)
 
@@ -73,6 +71,18 @@ q_idx = [5, 6]
 Xtdb = X[q_idx]
 ond_scores, ond_ranks = diffusion.online_search(Xtdb, agg=True)
 visualize_ranking(X, q_idx=q_idx, k_idx=ond_ranks, k_scores=ond_scores, contour=True)
+
+# online multiple
+Xtm = [
+    np.array([[0.4, 0.8], [1, -0.50]]),
+    np.array([[1.75, 0.8], [3, 0.50], [3, 0.55]]),
+]
+onm_scores, onm_ranks = diffusion.online_search_m(Xtm)
+# visualize_ranking(X, q=np.concatenate(Xtm), k_idx=onm_ranks, k_scores=onm_scores, contour=False)
+
+print((off_scores > 0).sum(axis=1))
+print((ond_scores > 0).sum(axis=1))
+print((onm_scores > 0).sum(axis=1))
 
 # %%
 # yq = y[q_idx][:1]
