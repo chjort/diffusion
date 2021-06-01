@@ -39,21 +39,26 @@ def scatter2d(x, return_axes=False, **kwargs):
 def visualize_ranking(X, q_idx=None, k_idx=None, k_scores=None, contour=False):
     scatter2d(X, c="#028ae6")
 
-    for i, (k_idx_i, k_scores_i) in enumerate(zip(k_idx, k_scores)):
-        Xk = X[k_idx_i]
-        xax, yax = scatter2d(
-            Xk,
-            c=k_scores_i,
-            edgecolors="k",
-            s=50,
-            linewidths=0.5,
-            return_axes=True,
-        )
-        if i == 0:
-            plt.colorbar()
-        if contour:
-            plt.tricontour(xax, yax, k_scores_i)
-            # plt.tricontourf(xax, yax, k_scores_i)
+    if k_idx is not None:
+        for i in range(len(k_idx)):
+            if k_scores is not None:
+                c = k_scores[i]
+            else:
+                c = "#73fc03"
+
+            Xk = X[k_idx[i]]
+            xax, yax = scatter2d(
+                Xk,
+                c=c,
+                edgecolors="k",
+                s=50,
+                linewidths=0.5,
+                return_axes=True,
+            )
+            if i == 0:
+                plt.colorbar()
+            if contour and k_scores is not None:
+                plt.tricontour(xax, yax, k_scores[i])
 
     if q_idx is not None:
         Xq = X[q_idx]

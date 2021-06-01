@@ -35,10 +35,7 @@ n = X.shape[0]
 
 Xn = X
 
-# q_idx = [333, 600]
 q_idx = [600, 686+3]
-# q_idx = [13 + 3, 686 + 3]
-# q_idx = [333, 14]  # circles
 k_idx = None
 
 # %%
@@ -48,62 +45,28 @@ diffusion.fit(Xn)
 # %% Diffusion
 scores, ranks = diffusion.offline_search(q_idx, agg=True)
 
+visualize_ranking(X, q_idx=q_idx, k_idx=ranks, k_scores=scores, contour=False)
+
 # q_idx = [[13 + 3, 686 + 3], [600, 686, 606]]
 # scores, ranks = diffusion.offline_search_m(q_idx)
 
 # %%
-# yq = y[q_idx]
-# yc = y
-
-# %% Multi-query
-# q = q.sum(axis=0, keepdims=True)
-# f_opt = np.matmul(q, np.transpose(c))
-# scores_m, ranks_m = sort2d(f_opt)
-
-# yq = yq[:1]
-# scores = scores_m
-# ranks = ranks_m
+yq = y[q_idx][:1]
+yc = y[np.sort(ranks)][0]
 
 # %%
-# gnd = [{"ok": np.argwhere(yc == yq[i])[:, 0]} for i in range(len(yq))]
-# compute_map_and_print("oxford5k", ranks.T, gnd)
+gnd = [{"ok": np.argwhere(yc == yq[i])[:, 0]} for i in range(len(yq))]
+compute_map_and_print("oxford5k", ranks.T, gnd)
 
-# %%
-plot_k = 750
+#%%
+plot_k = 150
 k_idx = ranks[:, :plot_k]
 k_scores = scores[:, :plot_k]
-
-# %%
-# k_idx_m = ranks_m[:, :plot_k]
-# k_scores_m = scores_m[:, :plot_k]
-
-#%%
-idx_score_agg = {}
-for indices, scs in zip(k_idx, k_scores):
-    for idx, sc in zip(indices, scs):
-        if idx in idx_score_agg:
-            idx_score_agg[idx] += sc
-        else:
-            idx_score_agg[idx] = sc
-k_idx_post = k_idx[:1]
-k_scores_post = np.array([[idx_score_agg[idx] for idx in k_idx[0]]])
-
-# k_idx = k_idx_post
-# k_scores = k_scores_post
-
-#%% Offline search
-# f_opt, ranks = diffusion.offline_search(q_idx)
-
-#%%
-# visualize_ranking(X, q_idx=q_idx, k_idx=[], k_scores=[], contour=False)
-# visualize_ranking(X, q_idx=None, k_idx=k_idx, k_scores=k_scores, contour=False)
-visualize_ranking(X, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=False)
-# visualize_ranking(X, q_idx=q_idx, k_idx=k_idx_m, k_scores=k_scores_m, contour=False)
-# visualize_ranking(X, q_idx=q_idx, k_idx=k_idx_post, k_scores=k_scores_post, contour=False)
+# visualize_ranking(X, q_idx=q_idx, k_idx=k_idx, k_scores=k_scores, contour=False)
 
 #%% Online search
 k_scores, k_idx = diffusion.online_search(Xt)
 # k_scores, k_idx = diffusion.online_search_d(Xt)
 k_scores = k_scores[-1:, :plot_k]  # NOTE: Last row
 k_idx = k_idx[-1:, :plot_k]  # NOTE: Last row
-visualize_ranking(X, q_idx=None, k_idx=k_idx, k_scores=k_scores, contour=False)
+# visualize_ranking(X, q_idx=None, k_idx=k_idx, k_scores=k_scores, contour=False)

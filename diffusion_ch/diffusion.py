@@ -217,11 +217,11 @@ class Diffusion:
 
         c_q = self.l_inv_[ids].toarray()
         if agg:
-            # agg method 1
             c_q = c_q.sum(axis=0, keepdims=True)
 
         # TODO: Single dot product for all aggregates in `offline_search_m`
         f_opt_c = c_q.dot(self.l_inv_.toarray().T)
+        # alternatively agg f_opt_c here
         f_opt_c, ranks = sort2d(f_opt_c)
 
         # remove the queries themselves from the search neighbors
@@ -229,11 +229,6 @@ class Diffusion:
         without_queries_shape = [ranks.shape[0], ranks.shape[1] - ids.shape[0]]
         ranks = np.reshape(ranks[not_query], without_queries_shape)
         f_opt_c = np.reshape(f_opt_c[not_query], without_queries_shape)
-
-        # TODO
-        # if agg:
-        # agg method 2
-        # pass
 
         return f_opt_c, ranks
 
@@ -259,12 +254,5 @@ class Diffusion:
     def online_search(self, X):
         y, ids = self.initialize(X)
         f_opt = self._online_search(y, ids)
-        f_opt, ranks = sort2d_trunc(f_opt, self.truncation_size)
-        return f_opt, ranks
-
-    def online_search_d(self, X):
-        y, ids = self.initialize(X)
-        f_opt = self._online_search(y, ids)
-        f_opt = f_opt @ self.l_inv_.toarray()
         f_opt, ranks = sort2d_trunc(f_opt, self.truncation_size)
         return f_opt, ranks
