@@ -6,12 +6,21 @@ from sklearn import preprocessing
 from tqdm import tqdm
 
 
+def _sum_groups(values, group_ids):
+    group_sum = {}
+    for gid, v in zip(group_ids, values):
+        group_sum[gid] = group_sum.get(gid, 0) + v
+    group_ids, values = zip(*group_sum.items())
+    group_ids, values = np.array(group_ids), np.array(values)
+    return values, group_ids
+
+
 def _args2d_to_indices(argsort_inds):
     rows = np.expand_dims(np.arange(argsort_inds.shape[0]), 1)
     return (rows, argsort_inds)
 
 
-def sort2d(m, reverse=False):
+def _sort2d(m, reverse=False):
     """
     Sorts a 2D array along the column axis and returns sorted values
     together with sorted indices.
@@ -216,13 +225,15 @@ class Diffusion:
         ids = _conform_indices(ids, ndim=1)
 
         c_q = self.l_inv_[ids].toarray()
+        # c_q = np.eye(self.l_inv_.shape[0])[ids]
+
         if agg:
             c_q = c_q.sum(axis=0, keepdims=True)
 
         # TODO: Single dot product for all aggregates in `offline_search_m`
         f_opt_c = c_q.dot(self.l_inv_.toarray().T)
         # alternatively agg f_opt_c here
-        f_opt_c, ranks = sort2d(f_opt_c)
+        f_opt_c, ranks = _sort2d(f_opt_c)
 
         # remove the queries themselves from the search neighbors
         not_query = np.isin(ranks, ids, invert=True)
@@ -232,10 +243,14 @@ class Diffusion:
 
         return f_opt_c, ranks
 
-    def initialize(self, X):
+    def initialize(self, X, agg=False):
         X = _conform_x(X)
         y, nn_ids = self._knn_search(X, k=self.k)
         y = y ** self.gamma
+
+        if agg:
+            y, nn_ids = _sum_groups(y.flatten(), nn_ids.flatten())
+            y, nn_ids = np.expand_dims(y, 0), np.expand_dims(nn_ids, 0)
 
         return y, nn_ids
 
@@ -251,8 +266,8 @@ class Diffusion:
         f_opt = np.stack(f_opt, axis=0)
         return f_opt
 
-    def online_search(self, X):
-        y, ids = self.initialize(X)
+    def online_search(self, X, agg=False):
+        y, ids = self.initialize(X, agg=agg)
         f_opt = self._online_search(y, ids)
         f_opt, ranks = sort2d_trunc(f_opt, self.truncation_size)
         return f_opt, ranks

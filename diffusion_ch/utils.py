@@ -36,7 +36,8 @@ def scatter2d(x, return_axes=False, **kwargs):
         return xax, yax
 
 
-def visualize_ranking(X, q_idx=None, k_idx=None, k_scores=None, contour=False):
+# def visualize_ranking(X, q_idx=None, k_idx=None, k_scores=None, contour=False):
+def visualize_ranking(X, q=None, q_idx=None, k_idx=None, k_scores=None, contour=False):
     scatter2d(X, c="#028ae6")
 
     if k_idx is not None:
@@ -59,6 +60,9 @@ def visualize_ranking(X, q_idx=None, k_idx=None, k_scores=None, contour=False):
                 plt.colorbar()
             if contour and k_scores is not None:
                 plt.tricontour(xax, yax, k_scores[i])
+
+    if q is not None:
+        scatter2d(q, c="C3")
 
     if q_idx is not None:
         Xq = X[q_idx]
