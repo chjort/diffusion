@@ -33,7 +33,6 @@ def sort2d(m, reverse=False):
     return np.array(scores), np.array(ids)
 
 
-# %%
 X, y = load_moons()
 Xt = X[:3]
 yt = y[:3]
@@ -45,9 +44,19 @@ n = X.shape[0]
 Xn = X
 
 
-# %%
 diffusion = Diffusion(k=15, truncation_size=500, affinity="euclidean")
 diffusion.fit(Xn)
+
+#%%
+# offine multiple
+q_idx = [
+    [600, 689],
+    [400, 520]
+]
+offm_scores, offm_ranks = diffusion.offline_search_m(q_idx)
+visualize_ranking(X, q_idx=q_idx, k_idx=offm_ranks, k_scores=offm_scores, contour=True)
+# visualize_ranking(X, q_idx=np.array(q_idx).flatten(), k_idx=offm_ranks[:1], k_scores=offm_scores[:1], contour=True)
+# visualize_ranking(X, q_idx=np.array(q_idx).flatten(), k_idx=offm_ranks[1:2], k_scores=offm_scores[1:2], contour=True)
 
 # %% Diffusion
 
@@ -63,8 +72,7 @@ q_idx = [
     [400, 520]
 ]
 offm_scores, offm_ranks = diffusion.offline_search_m(q_idx)
-visualize_ranking(X, q_idx=np.array(q_idx).flatten(), k_idx=offm_ranks[:1], k_scores=offm_scores[:1], contour=False)
-visualize_ranking(X, q_idx=np.array(q_idx).flatten(), k_idx=offm_ranks[1:2], k_scores=offm_scores[1:2], contour=False)
+visualize_ranking(X, q_idx=q_idx, k_idx=offm_ranks, k_scores=offm_scores, contour=False)
 
 # online
 on_scores, on_ranks = diffusion.online_search(Xt, agg=True)
@@ -87,7 +95,7 @@ Xtm = [
     np.array([[1.75, 0.8], [3, 0.50], [3, 0.55]]),
 ]
 onm_scores, onm_ranks = diffusion.online_search_m(Xtm)
-# visualize_ranking(X, q=np.concatenate(Xtm), k_idx=onm_ranks, k_scores=onm_scores, contour=False)
+visualize_ranking(X, q=Xtm, k_idx=onm_ranks, k_scores=onm_scores, contour=False)
 
 print((off_scores > 0).sum(axis=1))
 print((ond_scores > 0).sum(axis=1))
