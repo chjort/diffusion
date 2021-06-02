@@ -6,32 +6,6 @@ from diffusion_ch.utils import load_moons, visualize_ranking
 np.random.seed(42)
 
 
-def sum_groups(values, group_ids):
-    group_sum = {}
-    for gid, v in zip(group_ids, values):
-        group_sum[gid] = group_sum.get(gid, 0) + v
-    group_ids, values = zip(*group_sum.items())
-    group_ids, values = np.array(group_ids), np.array(values)
-    return values, group_ids
-
-
-def _args2d_to_indices(argsort_inds):
-    rows = np.expand_dims(np.arange(argsort_inds.shape[0]), 1)
-    return (rows, argsort_inds)
-
-
-def sort2d(m, reverse=False):
-    ids = np.argsort(m)
-    ids_inds = _args2d_to_indices(ids)
-    scores = m[ids_inds]
-
-    if not reverse:
-        ids = np.fliplr(ids)
-        scores = np.fliplr(scores)
-
-    return np.array(scores), np.array(ids)
-
-
 X, y = load_moons()
 # X, y = load_circles()
 n = X.shape[0]

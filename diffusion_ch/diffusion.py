@@ -4,7 +4,6 @@ from scipy import sparse
 from scipy.sparse import linalg
 from sklearn import preprocessing
 from tqdm import tqdm
-from diffusion_ch.utils import visualize_ranking
 
 
 def _sum_groups(values, group_ids):
@@ -19,7 +18,7 @@ def _sum_groups(values, group_ids):
 
 def _args2d_to_indices(argsort_inds):
     rows = np.expand_dims(np.arange(argsort_inds.shape[0]), 1)
-    return (rows, argsort_inds)
+    return rows, argsort_inds
 
 
 def _sort2d(m, reverse=False):
@@ -66,8 +65,8 @@ def _sort2d_trunc(m, trunc, reverse=False):
 
 # @delayed
 def _laplace_inv_col(node_ids, laplacian, f0):
-    L_trunc = laplacian[node_ids][:, node_ids]
-    c_i, _ = linalg.cg(L_trunc, f0, tol=1e-6, maxiter=20)
+    l_trunc = laplacian[node_ids][:, node_ids]
+    c_i, _ = linalg.cg(l_trunc, f0, tol=1e-6, maxiter=20)
     return c_i
 
 
@@ -94,6 +93,28 @@ def _remove_query_ids(f_opt, ranks, q_ids):
     ranks = np.reshape(ranks[not_query], without_queries_shape)
     f_opt = np.reshape(f_opt[not_query], without_queries_shape)
     return f_opt, ranks
+
+
+def _compute_degree_matrix(affinity_matrix):
+    n = affinity_matrix.shape[0]
+
+    ones = np.ones(n)
+    degrees = affinity_matrix.dot(ones) + 1e-12
+    degrees = degrees ** (-0.5)
+    offsets = [0]
+    degree_mat = sparse.dia_matrix((degrees, offsets), shape=(n, n), dtype=np.float32)
+    return degree_mat
+
+
+def _compute_laplacian_matrix(transition_matrix):
+    n = transition_matrix.shape[0]
+    ones = np.ones(n)
+    offsets = [0]
+
+    alpha = 0.99
+    sparse_eye = sparse.dia_matrix((ones, offsets), shape=(n, n), dtype=np.float32)
+    laplacian = sparse_eye - alpha * transition_matrix
+    return laplacian
 
 
 class Diffusion:
@@ -167,28 +188,6 @@ class Diffusion:
         )
         return affinity
 
-    def _compute_degree_matrix(self, affinity_matrix):
-        n = affinity_matrix.shape[0]
-
-        ones = np.ones(n)
-        degrees = affinity_matrix.dot(ones) + 1e-12
-        degrees = degrees ** (-0.5)
-        offsets = [0]
-        degree_mat = sparse.dia_matrix(
-            (degrees, offsets), shape=(n, n), dtype=np.float32
-        )
-        return degree_mat
-
-    def _compute_laplacian_matrix(self, transition_matrix):
-        n = transition_matrix.shape[0]
-        ones = np.ones(n)
-        offsets = [0]
-
-        alpha = 0.99
-        sparse_eye = sparse.dia_matrix((ones, offsets), shape=(n, n), dtype=np.float32)
-        laplacian = sparse_eye - alpha * transition_matrix
-        return laplacian
-
     def _compute_inverse_laplacian(self, neighborhood_ids, laplacian):
         n = laplacian.shape[0]
 
@@ -198,17 +197,17 @@ class Diffusion:
         gen = (
             _laplace_inv_col(neighborhood_ids[i], laplacian, f0) for i in tqdm(range(n))
         )
-        # L_inv_cols = Parallel(n_jobs=-1, prefer="threading")(gen)
-        L_inv_cols = list(gen)
-        L_inv_flat = np.concatenate(L_inv_cols)
+        # l_inv_cols = Parallel(n_jobs=-1, prefer="threading")(gen)
+        l_inv_cols = list(gen)
+        l_inv_flat = np.concatenate(l_inv_cols)
 
         rows = np.repeat(np.arange(n), self.truncation_size)
         cols = neighborhood_ids.reshape(-1)
-        L_inv = sparse.csr_matrix(
-            (L_inv_flat, (rows, cols)), shape=(n, n), dtype=np.float32
+        l_inv = sparse.csr_matrix(
+            (l_inv_flat, (rows, cols)), shape=(n, n), dtype=np.float32
         )
 
-        return L_inv
+        return l_inv
 
     def fit(self, X):
         X = _conform_x(X)
@@ -216,20 +215,19 @@ class Diffusion:
         self._build_index(X)
         aff, ids = self._compute_neighborhood_graph(X)
         A = self._compute_affinity_matrix(aff, ids)
-        D = self._compute_degree_matrix(A)
+        D = _compute_degree_matrix(A)
         S = D.dot(A).dot(D)
-        L = self._compute_laplacian_matrix(S)
+        L = _compute_laplacian_matrix(S)
 
-        L_inv = self._compute_inverse_laplacian(ids, L)
-        L_inv = preprocessing.normalize(L_inv, norm="l2", axis=1)
-        self.l_inv_ = L_inv
+        l_inv = self._compute_inverse_laplacian(ids, L)
+        l_inv = preprocessing.normalize(l_inv, norm="l2", axis=1)
+        self.l_inv_ = l_inv
 
         return self
 
     def _initialize_offline(self, ids, agg=False):
         ids = _conform_indices(ids, ndim=1)
         c_i = self.l_inv_[ids].toarray()
-        # c_i = np.eye(self.l_inv_.shape[0])[ids]
 
         if agg:
             c_i = c_i.sum(axis=0, keepdims=True)
@@ -253,9 +251,14 @@ class Diffusion:
         ]
 
         f_opts, ranks = zip(*f_opts_ranks)
-        # f_opts, ranks = np.concatenate(f_opts), np.concatenate(ranks)
         f_opts = [np.squeeze(fopt) for fopt in f_opts]
         ranks = [np.squeeze(rank) for rank in ranks]
+
+        try:
+            f_opts, ranks = np.stack(f_opts), np.stack(ranks)
+        except ValueError:
+            # Variable number of neighbors, so we cant stack into a numpy matrix.
+            pass
 
         return f_opts, ranks
 
