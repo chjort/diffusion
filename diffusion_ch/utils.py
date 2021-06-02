@@ -59,6 +59,8 @@ def _2d_to_3d(arr):
 
 
 def scatter2d(x, fig_ax=None, **kwargs):
+    x = np.array(x)
+
     xax, yax = x[:, 0], x[:, 1]
     if fig_ax is not None:
         f = fig_ax.scatter(xax, yax, **kwargs)
