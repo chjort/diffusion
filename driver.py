@@ -10,11 +10,26 @@ X, y = load_moons()
 # X, y = load_circles()
 n = X.shape[0]
 
-Xn = X
+diffusion = Diffusion(k=15, truncation_size=n, affinity="euclidean")
+diffusion.fit(X)
 
+#%% KNN
+q_idx = [13, 730]
+Xq = X[q_idx]
+scores, ranks = diffusion._knn_search(Xq, n)
+visualize_ranking(
+    X, q_idx=np.expand_dims(q_idx, 1), k_idx=ranks, k_scores=scores, contour=False
+)
 
-diffusion = Diffusion(k=15, truncation_size=500, affinity="euclidean")
-diffusion.fit(Xn)
+Xq = np.array(
+    [
+        [0.49034901, 0.82519593],
+        [1.03343541, -0.48960738],
+    ],
+    dtype=np.float32,
+)
+scores, ranks = diffusion._knn_search(Xq, n)
+visualize_ranking(X, q=Xq.reshape(2, 1, 2), k_idx=ranks, k_scores=scores, contour=False)
 
 # %% Diffusion
 
@@ -33,7 +48,7 @@ visualize_ranking(X, q_idx=q_idx, k_idx=ranks, k_scores=scores, contour=False)
 
 # online
 Xq = [
-    [0.83062202, -0.43261387],
+    # [0.83062202, -0.43261387],
     [0.49034901, 0.82519593],
     [1.03343541, -0.48960738],
 ]

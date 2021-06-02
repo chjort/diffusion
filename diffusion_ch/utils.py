@@ -6,11 +6,12 @@ np.random.seed(42)
 
 
 def load_circles():
-    n = 500
+    n = 750
     X, y = datasets.make_circles(
         n_samples=n, noise=0.05, random_state=42, factor=0.6, shuffle=True
     )
 
+    X = X.astype(np.float32)
     return X, y
 
 
@@ -26,6 +27,7 @@ def load_moons():
     X = np.concatenate([X, x0], axis=0)
     y = np.concatenate([y, y0], axis=0)
 
+    X = X.astype(np.float32)
     return X, y
 
 

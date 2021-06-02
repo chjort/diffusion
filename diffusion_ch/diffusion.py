@@ -177,10 +177,10 @@ class Diffusion:
             j_nn = ids[i_nn]
             # check reciprocity: i is in j's kNN and j is in i's kNN when i != j
             ismutual = np.isin(j_nn, i).any(axis=1)
-            ismutual[0] = False
+            ismutual[0] = False  # False where i = j
             if ismutual.any():
                 vec_ids.append(i * np.ones(ismutual.sum(), dtype=int))
-                mut_ids.append(ids[i, ismutual])
+                mut_ids.append(i_nn[ismutual])
                 mut_sims.append(sims[i, ismutual])
         vec_ids, mut_ids, mut_sims = map(np.concatenate, [vec_ids, mut_ids, mut_sims])
         affinity = sparse.csc_matrix(
