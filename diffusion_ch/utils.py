@@ -29,43 +29,89 @@ def load_moons():
     return X, y
 
 
-def scatter2d(x, return_axes=False, **kwargs):
+def _has_ndim(arr, ndim):
+    return all(np.ndim(ele) == ndim - 1 for ele in arr)
+
+
+def _ensure_2d(arr):
+    if _has_ndim(arr, 2):
+        return arr
+    elif _has_ndim(arr, 1):
+        arr = [arr]
+    else:
+        raise ValueError("Array must be at least 1D.")
+
+    return arr
+
+
+def _ensure_3d(arr):
+    if _has_ndim(arr, 3):
+        return arr
+    elif _has_ndim(arr, 2):
+        arr = [arr]
+    else:
+        raise ValueError("Array must be at least 2D.")
+
+    return arr
+
+
+def scatter2d(x, fig_ax=None, **kwargs):
     xax, yax = x[:, 0], x[:, 1]
-    plt.scatter(xax, yax, **kwargs)
-    if return_axes:
-        return xax, yax
+    if fig_ax is not None:
+        f = fig_ax.scatter(xax, yax, **kwargs)
+    else:
+        f = plt.scatter(xax, yax, **kwargs)
+
+    return f, xax, yax
 
 
-# def visualize_ranking(X, q_idx=None, k_idx=None, k_scores=None, contour=False):
 def visualize_ranking(X, q=None, q_idx=None, k_idx=None, k_scores=None, contour=False):
-    scatter2d(X, c="#028ae6")
+    if k_idx is not None:
+        k_idx = _ensure_2d(k_idx)
+        k_scores = _ensure_2d(k_scores)
+
+        fig, axes = plt.subplots(1, len(k_idx))
+        if len(k_idx) == 1:
+            axes = np.array([axes])
+        else:
+            axes = axes.flatten()
+    else:
+        fig, axes = plt.subplots(1, 1)
+        axes = np.array([axes])
+
+    for ax in axes:
+        scatter2d(X, fig_ax=ax, c="#028ae6")
 
     if k_idx is not None:
         for i in range(len(k_idx)):
+            ax = axes[i]
             if k_scores is not None:
                 c = k_scores[i]
             else:
                 c = "#73fc03"
 
             Xk = X[k_idx[i]]
-            xax, yax = scatter2d(
+            f, xax, yax = scatter2d(
                 Xk,
+                fig_ax=ax,
                 c=c,
                 edgecolors="k",
                 s=50,
                 linewidths=0.5,
-                return_axes=True,
             )
-            if i == 0:
-                plt.colorbar()
+            plt.colorbar(f, ax=ax)
             if contour and k_scores is not None:
-                plt.tricontour(xax, yax, k_scores[i])
+                ax.tricontour(xax, yax, k_scores[i])
 
     if q is not None:
-        scatter2d(q, c="C3")
+        q = _ensure_3d(q)
+        for qi, ax in zip(q, axes):
+            scatter2d(qi, fig_ax=ax, c="C3")
 
     if q_idx is not None:
-        Xq = X[q_idx]
-        scatter2d(Xq, c="C3")
+        q_idx = _ensure_2d(q_idx)
+        for qid, ax in zip(q_idx, axes):
+            Xq = X[qid]
+            scatter2d(Xq, fig_ax=ax, c="C3")
 
     plt.show()

@@ -252,7 +252,9 @@ class Diffusion:
         ]
 
         f_opts, ranks = zip(*f_opts_ranks)
-        f_opts, ranks = np.concatenate(f_opts), np.concatenate(ranks)
+        # f_opts, ranks = np.concatenate(f_opts), np.concatenate(ranks)
+        f_opts = [np.squeeze(fopt) for fopt in f_opts]
+        ranks = [np.squeeze(rank) for rank in ranks]
 
         return f_opts, ranks
 

@@ -2,7 +2,6 @@ import numpy as np
 
 from diffusion_ch.diffusion import Diffusion
 from diffusion_ch.utils import load_moons, visualize_ranking
-from rank import compute_map_and_print
 
 np.random.seed(42)
 
@@ -47,17 +46,6 @@ Xn = X
 diffusion = Diffusion(k=15, truncation_size=500, affinity="euclidean")
 diffusion.fit(Xn)
 
-#%%
-# offine multiple
-q_idx = [
-    [600, 689],
-    [400, 520]
-]
-offm_scores, offm_ranks = diffusion.offline_search_m(q_idx)
-visualize_ranking(X, q_idx=q_idx, k_idx=offm_ranks, k_scores=offm_scores, contour=True)
-# visualize_ranking(X, q_idx=np.array(q_idx).flatten(), k_idx=offm_ranks[:1], k_scores=offm_scores[:1], contour=True)
-# visualize_ranking(X, q_idx=np.array(q_idx).flatten(), k_idx=offm_ranks[1:2], k_scores=offm_scores[1:2], contour=True)
-
 # %% Diffusion
 
 # offine
@@ -68,8 +56,8 @@ visualize_ranking(X, q_idx=q_idx, k_idx=off_ranks, k_scores=off_scores, contour=
 
 # offine multiple
 q_idx = [
-    [600, 689],
-    [400, 520]
+    [600],
+    [400, 520],
 ]
 offm_scores, offm_ranks = diffusion.offline_search_m(q_idx)
 visualize_ranking(X, q_idx=q_idx, k_idx=offm_ranks, k_scores=offm_scores, contour=False)
@@ -96,10 +84,6 @@ Xtm = [
 ]
 onm_scores, onm_ranks = diffusion.online_search_m(Xtm)
 visualize_ranking(X, q=Xtm, k_idx=onm_ranks, k_scores=onm_scores, contour=False)
-
-print((off_scores > 0).sum(axis=1))
-print((ond_scores > 0).sum(axis=1))
-print((onm_scores > 0).sum(axis=1))
 
 # %%
 # yq = y[q_idx][:1]
