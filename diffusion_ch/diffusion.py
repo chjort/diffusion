@@ -4,6 +4,7 @@ from scipy import sparse
 from scipy.sparse import linalg
 from sklearn import preprocessing
 from tqdm import tqdm
+from diffusion_ch.utils import visualize_ranking
 
 
 def _sum_groups(values, group_ids):

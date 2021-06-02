@@ -49,33 +49,32 @@ diffusion.fit(Xn)
 # %% Diffusion
 
 # offine
-# q_idx = [600, 689]
 q_idx = [400, 689]
-off_scores, off_ranks = diffusion.offline_search(q_idx, agg=True)
-visualize_ranking(X, q_idx=q_idx, k_idx=off_ranks, k_scores=off_scores, contour=False)
+scores, ranks = diffusion.offline_search(q_idx, agg=True)
+visualize_ranking(X, q_idx=q_idx, k_idx=ranks, k_scores=scores, contour=False)
 
 # offine multiple
 q_idx = [
     [600],
     [400, 520],
 ]
-offm_scores, offm_ranks = diffusion.offline_search_m(q_idx)
-visualize_ranking(X, q_idx=q_idx, k_idx=offm_ranks, k_scores=offm_scores, contour=False)
+scores, ranks = diffusion.offline_search_m(q_idx)
+visualize_ranking(X, q_idx=q_idx, k_idx=ranks, k_scores=scores, contour=False)
 
 # online
-on_scores, on_ranks = diffusion.online_search(Xt, agg=True)
-visualize_ranking(X, q=Xt, k_idx=on_ranks, k_scores=on_scores, contour=False)
+scores, ranks = diffusion.online_search(Xt, agg=True)
+visualize_ranking(X, q=Xt, k_idx=ranks, k_scores=scores, contour=False)
 
 # online
 Xto = np.array([[0.4, 0.8], [1, -0.50]])
-on_scores, on_ranks = diffusion.online_search(Xto, agg=True)
-visualize_ranking(X, q=Xto, k_idx=on_ranks, k_scores=on_scores, contour=False)
+scores, ranks = diffusion.online_search(Xto, agg=True)
+visualize_ranking(X, q=Xto, k_idx=ranks, k_scores=scores, contour=False)
 
 # online (in db)
 q_idx = [5, 6]
 Xtdb = X[q_idx]
-ond_scores, ond_ranks = diffusion.online_search(Xtdb, agg=True)
-visualize_ranking(X, q_idx=q_idx, k_idx=ond_ranks, k_scores=ond_scores, contour=True)
+scores, ranks = diffusion.online_search(Xtdb, agg=True)
+visualize_ranking(X, q_idx=q_idx, k_idx=ranks, k_scores=scores, contour=True)
 
 # online multiple
 Xtm = [
@@ -83,7 +82,7 @@ Xtm = [
     np.array([[1.75, 0.8], [3, 0.50], [3, 0.55]]),
 ]
 onm_scores, onm_ranks = diffusion.online_search_m(Xtm)
-visualize_ranking(X, q=Xtm, k_idx=onm_ranks, k_scores=onm_scores, contour=False)
+visualize_ranking(X, q=Xtm, k_idx=ranks, k_scores=scores, contour=False)
 
 # %%
 # yq = y[q_idx][:1]

@@ -30,27 +30,30 @@ def load_moons():
 
 
 def _has_ndim(arr, ndim):
+    """
+    Return True if `arr` is `ndim` dimensional. Also handles the case where first dimension of `arr` is ragged
+    """
     return all(np.ndim(ele) == ndim - 1 for ele in arr)
 
 
-def _ensure_2d(arr):
+def _1d_to_2d(arr):
     if _has_ndim(arr, 2):
         return arr
     elif _has_ndim(arr, 1):
         arr = [arr]
     else:
-        raise ValueError("Array must be at least 1D.")
+        raise ValueError("Array must be 1D or 2D.")
 
     return arr
 
 
-def _ensure_3d(arr):
+def _2d_to_3d(arr):
     if _has_ndim(arr, 3):
         return arr
     elif _has_ndim(arr, 2):
         arr = [arr]
     else:
-        raise ValueError("Array must be at least 2D.")
+        raise ValueError("Array must be 2D or 3D.")
 
     return arr
 
@@ -67,8 +70,8 @@ def scatter2d(x, fig_ax=None, **kwargs):
 
 def visualize_ranking(X, q=None, q_idx=None, k_idx=None, k_scores=None, contour=False):
     if k_idx is not None:
-        k_idx = _ensure_2d(k_idx)
-        k_scores = _ensure_2d(k_scores)
+        k_idx = _1d_to_2d(k_idx)
+        k_scores = _1d_to_2d(k_scores)
 
         fig, axes = plt.subplots(1, len(k_idx))
         if len(k_idx) == 1:
@@ -104,12 +107,12 @@ def visualize_ranking(X, q=None, q_idx=None, k_idx=None, k_scores=None, contour=
                 ax.tricontour(xax, yax, k_scores[i])
 
     if q is not None:
-        q = _ensure_3d(q)
+        q = _2d_to_3d(q)
         for qi, ax in zip(q, axes):
             scatter2d(qi, fig_ax=ax, c="C3")
 
     if q_idx is not None:
-        q_idx = _ensure_2d(q_idx)
+        q_idx = _1d_to_2d(q_idx)
         for qid, ax in zip(q_idx, axes):
             Xq = X[qid]
             scatter2d(Xq, fig_ax=ax, c="C3")
