@@ -17,7 +17,7 @@ def load_circles():
 
 def load_moons():
     n = 500
-    X, y = datasets.make_moons(n_samples=n, noise=0.07, random_state=42, shuffle=True)
+    X, y = datasets.make_moons(n_samples=n, noise=0.07, random_state=42, shuffle=False)
 
     x0 = X[y == 0]
     X[:, 0][y == 0] -= 0.25
@@ -72,12 +72,12 @@ def scatter2d(x, fig_ax=None, **kwargs):
     return f, xax, yax
 
 
-def visualize_ranking(X, q=None, q_idx=None, k_idx=None, k_scores=None, contour=False):
+def visualize_ranking(X, q=None, q_idx=None, k_idx=None, k_scores=None, contour=False, title=None):
     if k_idx is not None:
         k_idx = _1d_to_2d(k_idx)
         k_scores = _1d_to_2d(k_scores)
 
-        fig, axes = plt.subplots(1, len(k_idx))
+        fig, axes = plt.subplots(1, len(k_idx), figsize=(11, 6))
         if len(k_idx) == 1:
             axes = np.array([axes])
         else:
@@ -121,4 +121,6 @@ def visualize_ranking(X, q=None, q_idx=None, k_idx=None, k_scores=None, contour=
             Xq = X[qid]
             scatter2d(Xq, fig_ax=ax, c="C3")
 
+    if title is not None:
+        plt.suptitle(title, fontsize=14)
     plt.show()
