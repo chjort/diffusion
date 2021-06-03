@@ -87,7 +87,7 @@ def _conform_indices(X, ndim=2):
 
 
 def _remove_query_ids(f_opt, ranks, q_ids):
-    """ Remove the query ids from the search neighbors """
+    """Remove the query ids from the search neighbors"""
     not_query = np.isin(ranks, q_ids, invert=True)
     without_queries_shape = [ranks.shape[0], ranks.shape[1] - q_ids.shape[0]]
     ranks = np.reshape(ranks[not_query], without_queries_shape)
@@ -190,8 +190,12 @@ class Diffusion:
 
     def _compute_inverse_laplacian(self, neighborhood_ids, laplacian):
         n = laplacian.shape[0]
+        if self.truncation_size is not None:
+            n_trunc = self.truncation_size
+        else:
+            n_trunc = n
 
-        f0 = np.zeros(self.truncation_size)
+        f0 = np.zeros(n_trunc)
         f0[0] = 1
 
         gen = (
@@ -201,7 +205,7 @@ class Diffusion:
         l_inv_cols = list(gen)
         l_inv_flat = np.concatenate(l_inv_cols)
 
-        rows = np.repeat(np.arange(n), self.truncation_size)
+        rows = np.repeat(np.arange(n), n_trunc)
         cols = neighborhood_ids.reshape(-1)
         l_inv = sparse.csr_matrix(
             (l_inv_flat, (rows, cols)), shape=(n, n), dtype=np.float32
@@ -267,13 +271,16 @@ class Diffusion:
         c_q = self._initialize_offline(ids, agg=agg)
         f_opt = self._diffuse_offline(c_q)
 
-        # TODO: Multiply truncation_size with number of aggregates and sort_trunc
-        if agg:
-            # when aggregating, the number of neighbors can be larger than truncation_size
+        if (
+            agg
+            or self.truncation_size is None
+            or self.truncation_size >= self.l_inv_.shape[0]
+        ):
             f_opt, ranks = _sort2d(f_opt)
         else:
             f_opt, ranks = _sort2d_trunc(f_opt, self.truncation_size)
 
+        # TODO: FIXME when agg=False
         f_opt, ranks = _remove_query_ids(f_opt, ranks, ids)
 
         return f_opt, ranks
@@ -312,9 +319,11 @@ class Diffusion:
         y, ids = self._initialize_online(X, agg=agg)
         f_opt = self._diffuse_online(y, ids)
 
-        # TODO: Multiply truncation_size with number of aggregates and sort_trunc
-        if agg:
-            # when aggregating, the number of neighbors can be larger than truncation_size
+        if (
+            agg
+            or self.truncation_size is None
+            or self.truncation_size >= self.l_inv_.shape[0]
+        ):
             f_opt, ranks = _sort2d(f_opt)
         else:
             f_opt, ranks = _sort2d_trunc(f_opt, self.truncation_size)

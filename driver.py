@@ -10,8 +10,26 @@ X, y = load_moons()
 # X, y = load_circles()
 n = X.shape[0]
 
-diffusion = Diffusion(k=15, truncation_size=n, affinity="euclidean")
+diffusion = Diffusion(k=15, truncation_size=500, affinity="euclidean")
 diffusion.fit(X)
+
+#%%
+from diffusion_ch.diffusion import _remove_query_ids, _conform_indices
+
+q_idx = [13, 730]
+scores, ranks = diffusion.offline_search(q_idx, agg=False)
+
+q_idx = _conform_indices(q_idx, 1)
+_remove_query_ids(scores, ranks, q_idx)
+
+q_ids = q_idx
+not_query = np.isin(ranks, q_ids, invert=True)
+without_queries_shape = [ranks.shape[0], ranks.shape[1] - q_ids.shape[0]]
+rt = np.reshape(ranks[not_query], without_queries_shape)
+st = np.reshape(scores[not_query], without_queries_shape)
+
+ranks[:, :10]
+not_query[:, :10]
 
 #%% KNN
 q_idx = [13, 730]
