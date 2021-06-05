@@ -86,13 +86,9 @@ def _conform_indices(X, ndim=2):
     return X
 
 
-def _remove_query_ids(f_opt, ranks, q_ids):
-    """Remove the query ids from the search neighbors"""
-    not_query = np.isin(ranks, q_ids, invert=True)
-    without_queries_shape = [ranks.shape[0], ranks.shape[1] - q_ids.shape[0]]
-    ranks = np.reshape(ranks[not_query], without_queries_shape)
-    f_opt = np.reshape(f_opt[not_query], without_queries_shape)
-    return f_opt, ranks
+def _remove_query_ids_1d(f_opt, ranks, ids):
+    not_query = np.isin(ranks, ids, invert=True)
+    return f_opt[not_query], ranks[not_query]
 
 
 def _compute_degree_matrix(affinity_matrix):
@@ -249,14 +245,12 @@ class Diffusion:
         f_opts = self._diffuse_offline(c_qs)
         f_opts, ranks = _sort2d(f_opts)
 
-        f_opts_ranks = [
-            _remove_query_ids(f_opt_i[None, :], ranks_i[None, :], id_)
-            for f_opt_i, ranks_i, id_ in zip(f_opts, ranks, ids)
-        ]
-
-        f_opts, ranks = zip(*f_opts_ranks)
-        f_opts = [np.squeeze(fopt) for fopt in f_opts]
-        ranks = [np.squeeze(rank) for rank in ranks]
+        f_opts, ranks = zip(
+            *[
+                _remove_query_ids_1d(f_opt_i, ranks_i, ids_i)
+                for f_opt_i, ranks_i, ids_i in zip(f_opts, ranks, ids)
+            ]
+        )
 
         try:
             f_opts, ranks = np.stack(f_opts), np.stack(ranks)
@@ -277,11 +271,17 @@ class Diffusion:
             or self.truncation_size >= self.l_inv_.shape[0]
         ):
             f_opt, ranks = _sort2d(f_opt)
+            f_opt, ranks = _remove_query_ids_1d(f_opt, ranks, ids)
+            f_opt, ranks = np.expand_dims(f_opt, 0), np.expand_dims(ranks, 0)
         else:
             f_opt, ranks = _sort2d_trunc(f_opt, self.truncation_size)
-
-        # TODO: FIXME when agg=False
-        f_opt, ranks = _remove_query_ids(f_opt, ranks, ids)
+            f_opt, ranks = zip(
+                *[
+                    _remove_query_ids_1d(f_opt_i, ranks_i, ids_i)
+                    for f_opt_i, ranks_i, ids_i in zip(f_opt, ranks, ids)
+                ]
+            )
+            f_opt, ranks = np.stack(f_opt), np.stack(ranks)
 
         return f_opt, ranks
 
