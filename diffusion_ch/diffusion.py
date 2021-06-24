@@ -135,6 +135,14 @@ def _compute_laplacian_matrix(transition_matrix):
 
 class Diffusion:
     def __init__(self, k=15, truncation_size=None, affinity="cosine", gamma=3):
+        """
+
+        Args:
+            k: Number of neighbors to use in the transition matrix
+            truncation_size: Number of results to truncate search to
+            affinity: The affinity measure to use. Default "cosine".
+            gamma: Affinity exponent. Higher values gives more emphasis on high affinities.
+        """
         super(Diffusion, self).__init__()
         self.k = k
         self.truncation_size = truncation_size
@@ -157,7 +165,8 @@ class Diffusion:
 
     def _knn_search(self, x, k):
         scores, ids = self.knn_.search(x, k)
-        scores = 1 - (scores / scores.max(axis=1)[:, None])
+        if self.affinity == "euclidean":
+            scores = 1 - (scores / scores.max(axis=1)[:, None])
         return scores, ids
 
     def _compute_neighborhood_graph(self, X):
