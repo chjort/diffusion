@@ -92,6 +92,16 @@ def _remove_query_ids_1d(f_opt, ranks, ids):
 
 
 def _compute_degree_matrix(affinity_matrix):
+    """
+    Comupte diagonal degree matrix used to normalize affinity matrix intro transition matrix.
+
+    Args:
+        affinity_matrix: Matrix with affinity scores.
+
+    Returns:
+        Diagonal degree matrix
+
+    """
     n = affinity_matrix.shape[0]
 
     ones = np.ones(n)
@@ -103,6 +113,16 @@ def _compute_degree_matrix(affinity_matrix):
 
 
 def _compute_laplacian_matrix(transition_matrix):
+    """
+    Compute the laplacian of the transition matrix
+
+    Args:
+        transition_matrix: Transition matrix
+
+    Returns:
+        The laplacian of the transition matrix
+
+    """
     n = transition_matrix.shape[0]
     ones = np.ones(n)
     offsets = [0]
@@ -141,6 +161,16 @@ class Diffusion:
         return scores, ids
 
     def _compute_neighborhood_graph(self, X):
+        """
+        Compute neighborhood of data points.
+
+        Args:
+            X: Data points
+
+        Returns:
+            A tuple of nearest neighbors scores and nearest neighbors ids.
+
+        """
         if self.truncation_size is not None:
             k = self.truncation_size
         else:
@@ -185,6 +215,16 @@ class Diffusion:
         return affinity
 
     def _compute_inverse_laplacian(self, neighborhood_ids, laplacian):
+        """
+        Compute the inverse laplacian matrix
+
+        Args:
+            neighborhood_ids: ids of the nearest neighbors for each data point
+            laplacian: laplacian of the transition matrix
+
+        Returns:
+
+        """
         n = laplacian.shape[0]
         if self.truncation_size is not None:
             n_trunc = self.truncation_size
@@ -210,13 +250,17 @@ class Diffusion:
         return l_inv
 
     def fit(self, X):
+        """
+        Compute the closed form solution of the diffusion process.
+        """
+
         X = _conform_x(X)
 
         self._build_index(X)
         aff, ids = self._compute_neighborhood_graph(X)
         A = self._compute_affinity_matrix(aff, ids)
         D = _compute_degree_matrix(A)
-        S = D.dot(A).dot(D)
+        S = D.dot(A).dot(D)  # Transition matrix
         L = _compute_laplacian_matrix(S)
 
         l_inv = self._compute_inverse_laplacian(ids, L)
@@ -239,7 +283,18 @@ class Diffusion:
         f_opt = y.dot(l_inv)
         return f_opt
 
-    def offline_search_m(self, ids):
+    def offline_search_multiple(self, ids):
+        """
+        Perform offline diffusion search for multiple sequences of data point ids.
+        Each sequence is aggregated to find the combined neighbors for each sequence.
+
+        Args:
+            ids: List of lists of ids to use a search queries.
+
+        Returns:
+            A list of diffusion scores and a list of ids
+
+        """
         ids = [_conform_indices(ids_i, ndim=1) for ids_i in ids]
         c_qs = np.concatenate([self._initialize_offline(id_, agg=True) for id_ in ids])
         f_opts = self._diffuse_offline(c_qs)
@@ -261,6 +316,17 @@ class Diffusion:
         return f_opts, ranks
 
     def offline_search(self, ids, agg=False):
+        """
+        Perform offline diffusion search for a sequence of data point ids.
+
+        Args:
+            ids: List of ids to use as search queries.
+            agg: If True, will aggregate queries and find their combined neighbors.
+
+        Returns:
+            Diffusion scores and ids
+
+        """
         ids = _conform_indices(ids, ndim=1)
         c_q = self._initialize_offline(ids, agg=agg)
         f_opt = self._diffuse_offline(c_q)
@@ -308,7 +374,18 @@ class Diffusion:
         f_opt = np.stack(f_opt, axis=0)
         return f_opt
 
-    def online_search_m(self, X):
+    def online_search_multiple(self, X):
+        """
+        Perform offline diffusion search for multiple sequences of data points.
+        Each sequence is aggregated to find the combined neighbors for each sequence.
+
+        Args:
+            X: List of of list of data points.
+
+        Returns:
+            A list of diffusion scores and a list of ids
+
+        """
         X = [_conform_x(x_i) for x_i in X]
         ys_ids = [self._initialize_online(x_i, agg=True) for x_i in X]
         f_opts = np.concatenate([self._diffuse_online(y, id_) for y, id_ in ys_ids])
@@ -316,6 +393,17 @@ class Diffusion:
         return f_opt, ranks
 
     def online_search(self, X, agg=False):
+        """
+        Perform online diffusion for a sequence of data points.
+        Args:
+            X: List of data points.
+            agg: If True, will aggregate queries and find their combined neighbors.
+
+        Returns:
+            Diffusion scores and ids
+
+        """
+
         y, ids = self._initialize_online(X, agg=agg)
         f_opt = self._diffuse_online(y, ids)
 
