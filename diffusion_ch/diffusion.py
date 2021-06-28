@@ -3,7 +3,6 @@ import numpy as np
 from scipy import sparse
 from scipy.sparse import linalg
 from sklearn import preprocessing
-from tqdm import tqdm
 
 
 def _sum_groups(values, group_ids):
@@ -91,6 +90,15 @@ def _remove_query_ids_1d(f_opt, ranks, ids):
     return f_opt[not_query], ranks[not_query]
 
 
+def _remove_query_ids_2d(f_opt, ranks, ids):
+    n, m = f_opt.shape
+    ni = len(ids)
+    f_opt, ranks = _remove_query_ids_1d(f_opt, ranks, ids)
+    f_opt = f_opt.reshape(n, m - ni)
+    ranks = ranks.reshape(n, m - ni)
+    return f_opt, ranks
+
+
 def _compute_degree_matrix(affinity_matrix):
     """
     Comupte diagonal degree matrix used to normalize affinity matrix intro transition matrix.
@@ -164,6 +172,7 @@ class Diffusion:
         self.knn_.add(X)
 
     def _knn_search(self, x, k):
+        k = int(k)
         scores, ids = self.knn_.search(x, k)
         if self.affinity == "euclidean":
             scores = 1 - (scores / scores.max(axis=1)[:, None])
@@ -243,9 +252,7 @@ class Diffusion:
         f0 = np.zeros(n_trunc)
         f0[0] = 1
 
-        gen = (
-            _laplace_inv_col(neighborhood_ids[i], laplacian, f0) for i in tqdm(range(n))
-        )
+        gen = (_laplace_inv_col(neighborhood_ids[i], laplacian, f0) for i in range(n))
         # l_inv_cols = Parallel(n_jobs=-1, prefer="threading")(gen)
         l_inv_cols = list(gen)
         l_inv_flat = np.concatenate(l_inv_cols)
@@ -264,6 +271,9 @@ class Diffusion:
         """
 
         X = _conform_x(X)
+
+        if self.truncation_size is not None:
+            self.truncation_size = np.minimum(self.truncation_size, X.shape[0])
 
         self._build_index(X)
         aff, ids = self._compute_neighborhood_graph(X)
@@ -339,15 +349,13 @@ class Diffusion:
         ids = _conform_indices(ids, ndim=1)
         c_q = self._initialize_offline(ids, agg=agg)
         f_opt = self._diffuse_offline(c_q)
-
         if (
             agg
             or self.truncation_size is None
             or self.truncation_size >= self.l_inv_.shape[0]
         ):
             f_opt, ranks = _sort2d(f_opt)
-            f_opt, ranks = _remove_query_ids_1d(f_opt, ranks, ids)
-            f_opt, ranks = np.expand_dims(f_opt, 0), np.expand_dims(ranks, 0)
+            f_opt, ranks = _remove_query_ids_2d(f_opt, ranks, ids)
         else:
             f_opt, ranks = _sort2d_trunc(f_opt, self.truncation_size)
             f_opt, ranks = zip(
